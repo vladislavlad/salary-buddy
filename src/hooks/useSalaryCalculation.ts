@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { SalarySettings, Bonus, PaymentInfo, YearCalculation, CalendarData } from '@/types';
+import type { SalarySettings, Bonus, PaymentInfo, YearCalculation, CalendarData, BonusPaymentInfo } from '@/types';
 import { calculateNdflForPayment } from '@/lib/ndfl';
 import { findPreviousWorkday, countWorkdays } from '@/services/calendar';
 
@@ -16,6 +16,7 @@ export function useSalaryCalculation(
     if (!settings || !calendarData) return null;
 
     const payments: PaymentInfo[] = [];
+    const bonusPayments: BonusPaymentInfo[] = [];
     let accumulatedIncome = 0;
     let totalTaxPaid = 0;
 
@@ -52,15 +53,15 @@ export function useSalaryCalculation(
         advanceGross = settings.salary / 2;
         salaryGross = settings.salary / 2;
       } else {
-        // По отработанным дням
+        // По отработанным дням: аванс пропорционален рабочим дням с начала месяца до аванса
         const monthStart = new Date(year, month, 1);
         const monthEnd = new Date(year, month + 1, 0);
 
         const totalWorkdaysInMonth = countWorkdays(monthStart, monthEnd, calendarData);
-        const workdaysBeforeAdvance = countWorkdays(adjustedAdvance, adjustedSalary, calendarData);
+        const workdaysUntilAdvance = countWorkdays(monthStart, adjustedAdvance, calendarData);
 
         if (totalWorkdaysInMonth > 0) {
-          advanceGross = settings.salary * (workdaysBeforeAdvance / totalWorkdaysInMonth);
+          advanceGross = settings.salary * (workdaysUntilAdvance / totalWorkdaysInMonth);
           salaryGross = settings.salary - advanceGross;
         } else {
           advanceGross = settings.salary / 2;
@@ -96,7 +97,8 @@ export function useSalaryCalculation(
 
     const bonusEvents: BonusEvent[] = bonuses.map((b) => ({
       date: new Date(b.date),
-      gross: b.type === 'gross' ? b.amount : 0,
+      // "В окладах" — количество окладов, "Своя сумма" — фиксированная сумма до НДФЛ
+      gross: b.type === 'salaries' ? b.amount * settings.salary : b.amount,
     }));
 
     // Объединяем и сортируем все события
@@ -107,19 +109,31 @@ export function useSalaryCalculation(
 
     // Проходим по всем событиям и рассчитываем НДФЛ
     for (const event of allEvents) {
-      if ('isBonus' in event && event.isBonus) continue;
+      const isBonus = 'isBonus' in event && event.isBonus;
 
       const result = calculateNdflForPayment(event.gross, accumulatedIncome, totalTaxPaid);
 
-      payments.push({
-        date: event.date,
-        originalDate: event.originalDate,
-        type: event.type,
-        gross: event.gross,
-        ndfl: result.ndfl,
-        net: event.gross - result.ndfl,
-        month: event.month,
-      });
+      if (!isBonus) {
+        payments.push({
+          date: event.date,
+          originalDate: event.originalDate,
+          type: event.type,
+          gross: event.gross,
+          ndfl: result.ndfl,
+          net: event.gross - result.ndfl,
+          month: event.month,
+          taxBreakdown: result.breakdown,
+        });
+      } else {
+        // Премия влияет на НДФЛ и учитывается в итогах
+        bonusPayments.push({
+          date: event.date,
+          gross: event.gross,
+          ndfl: result.ndfl,
+          net: event.gross - result.ndfl,
+          taxBreakdown: result.breakdown,
+        });
+      }
 
       accumulatedIncome = result.newAccumulatedIncome;
       totalTaxPaid = result.newTotalTax;
@@ -128,13 +142,14 @@ export function useSalaryCalculation(
     // Сортируем выплаты по дате для отображения
     payments.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-    const totalGross = payments.reduce((sum, p) => sum + p.gross, 0);
-    const totalNdfl = payments.reduce((sum, p) => sum + p.ndfl, 0);
-    const totalNet = payments.reduce((sum, p) => sum + p.net, 0);
+    const totalGross = payments.reduce((sum, p) => sum + p.gross, 0) + bonusPayments.reduce((sum, p) => sum + p.gross, 0);
+    const totalNdfl = payments.reduce((sum, p) => sum + p.ndfl, 0) + bonusPayments.reduce((sum, p) => sum + p.ndfl, 0);
+    const totalNet = payments.reduce((sum, p) => sum + p.net, 0) + bonusPayments.reduce((sum, p) => sum + p.net, 0);
 
     return {
       payments,
       bonuses: [],
+      bonusPayments,
       totalGross,
       totalNdfl,
       totalNet,

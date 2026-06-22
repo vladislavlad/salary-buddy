@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,60 +9,83 @@ interface SettingsFormProps {
   onChange: (updates: Partial<SalarySettings>) => void;
 }
 
+function NumberField({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  onChange: (val: number) => void;
+}) {
+  const [localValue, setLocalValue] = useState(String(value));
+
+  // Синхронизируем с внешним значением при изменении извне
+  if (localValue !== String(value) && document.activeElement?.id !== `input-${label.replace(/\s/g, '-')}`) {
+    setLocalValue(String(value));
+  }
+
+  const id = `input-${label.replace(/\s/g, '-')}`;
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={localValue}
+        onChange={(e) => setLocalValue(e.target.value)}
+        onBlur={() => {
+          const num = Number(localValue);
+          if (!isNaN(num)) {
+            if (min !== undefined && num < min) return;
+            if (max !== undefined && num > max) return;
+            onChange(num);
+          } else {
+            setLocalValue(String(value));
+          }
+        }}
+      />
+    </div>
+  );
+}
+
 export function SettingsForm({ settings, onChange }: SettingsFormProps) {
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="salary">Оклад до НДФЛ (₽)</Label>
-        <Input
-          id="salary"
-          type="number"
-          min={0}
-          step={1000}
-          value={settings.salary}
-          onChange={(e) => {
-            const val = Number(e.target.value);
-            if (!isNaN(val) && val >= 0) {
-              onChange({ salary: val });
-            }
-          }}
-        />
-      </div>
+      <NumberField
+        label="Оклад до НДФЛ (₽)"
+        value={settings.salary}
+        min={0}
+        step={1000}
+        onChange={(val) => onChange({ salary: val })}
+      />
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="advanceDay">Число аванса</Label>
-          <Input
-            id="advanceDay"
-            type="number"
-            min={1}
-            max={28}
-            value={settings.advanceDay}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              if (!isNaN(val) && val >= 1 && val <= 28) {
-                onChange({ advanceDay: val });
-              }
-            }}
-          />
-        </div>
+        <NumberField
+          label="Число аванса"
+          value={settings.advanceDay}
+          min={1}
+          max={28}
+          onChange={(val) => onChange({ advanceDay: val })}
+        />
 
-        <div className="space-y-2">
-          <Label htmlFor="salaryDay">Число зарплаты</Label>
-          <Input
-            id="salaryDay"
-            type="number"
-            min={1}
-            max={28}
-            value={settings.salaryDay}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              if (!isNaN(val) && val >= 1 && val <= 28) {
-                onChange({ salaryDay: val });
-              }
-            }}
-          />
-        </div>
+        <NumberField
+          label="Число зарплаты"
+          value={settings.salaryDay}
+          min={1}
+          max={28}
+          onChange={(val) => onChange({ salaryDay: val })}
+        />
       </div>
 
       <div className="space-y-2">

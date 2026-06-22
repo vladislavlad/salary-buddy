@@ -5,7 +5,7 @@ export const PaymentDistributionSchema = z.enum(['fifty-fifty', 'by-worked-days'
 export type PaymentDistribution = z.infer<typeof PaymentDistributionSchema>;
 
 // Тип премии
-export const BonusTypeSchema = z.enum(['gross', 'net']);
+export const BonusTypeSchema = z.enum(['salaries', 'custom']);
 export type BonusType = z.infer<typeof BonusTypeSchema>;
 
 // Настройки зарплаты пользователя
@@ -29,18 +29,19 @@ export const BonusSchema = z.object({
 export type Bonus = z.infer<typeof BonusSchema>;
 
 // Данные производственного календаря из API isdayoff.ru
-export interface CalendarData {
-  year: number;
-  countrycode: string;
-  dayoff: string[]; // выходные (перенесённые)
-  predayoff: string[]; // сокращённые дни
-  holiday: string[]; // праздничные дни
-}
+// Ключ — дата в формате YYYYMMDD, значение — код дня (0=рабочий, 1=нерабочий, 2=сокращённый, 8=праздник)
+export type CalendarData = Map<string, number>;
 
 // Результат расчёта НДФЛ по прогрессивной шкале
 export interface NdfResult {
   tax: number; // сумма налога
   effectiveRate: number; // эффективная ставка в %
+}
+
+// Разбивка НДФЛ по ставкам
+export interface TaxBracketBreakdown {
+  rate: number; // ставка в % (13, 15, 18, 20, 22)
+  amount: number; // сумма налога по этой ставке
 }
 
 // Информация о выплате
@@ -52,15 +53,26 @@ export interface PaymentInfo {
   ndfl: number; // НДФЛ
   net: number; // на руки
   month: number; // месяц выплаты (1-12)
+  taxBreakdown?: TaxBracketBreakdown[];
 }
 
 // Результат расчёта зарплаты за год
 export interface YearCalculation {
   payments: PaymentInfo[];
   bonuses: BonusPayment[];
+  bonusPayments: BonusPaymentInfo[];
   totalGross: number;
   totalNdfl: number;
   totalNet: number;
+}
+
+// Информация о выплате премии с рассчитанным НДФЛ
+export interface BonusPaymentInfo {
+  date: Date;
+  gross: number;
+  ndfl: number;
+  net: number;
+  taxBreakdown?: TaxBracketBreakdown[];
 }
 
 // Премия с рассчитанным НДФЛ

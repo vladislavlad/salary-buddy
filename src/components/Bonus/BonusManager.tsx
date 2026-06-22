@@ -8,6 +8,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Bonus, BonusType } from '@/types';
 
+function pluralizeSalaries(n: number): string {
+  const abs = Math.abs(n) % 100;
+  const lastDigit = abs % 10;
+  if (abs > 10 && abs < 20) return 'окладов';
+  if (lastDigit === 1) return 'оклад';
+  if (lastDigit >= 2 && lastDigit <= 4) return 'оклада';
+  return 'окладов';
+}
+
 interface BonusManagerProps {
   bonuses: Bonus[];
   onAdd: (bonus: Omit<Bonus, 'id'>) => void;
@@ -16,24 +25,54 @@ interface BonusManagerProps {
 
 export function BonusManager({ bonuses, onAdd, onRemove }: BonusManagerProps) {
   const [date, setDate] = useState('');
-  const [amount, setAmount] = useState('');
-  const [type, setType] = useState<BonusType>('gross');
+  const [value, setValue] = useState('');
+  const [type, setType] = useState<BonusType>('salaries');
 
   const handleAdd = () => {
-    if (!date || !amount) return;
+    if (!date || !value) return;
     onAdd({
       date: new Date(date),
-      amount: Number(amount),
+      amount: Number(value),
       type,
     });
     setDate('');
-    setAmount('');
-    setType('gross');
+    setValue('');
+    setType('salaries');
   };
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      {/* Список добавленных премий */}
+      {bonuses.length > 0 && (
+        <div className="space-y-2">
+          {bonuses.map((bonus) => (
+            <div
+              key={bonus.id}
+              className="flex items-center justify-between p-3 rounded-lg border bg-card"
+            >
+              <div className="min-w-0">
+                <p className="font-medium">
+                  {format(bonus.date, 'd MMMM yyyy', { locale: ru })}
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  {bonus.type === 'salaries'
+                    ? `${bonus.amount} ${pluralizeSalaries(bonus.amount)}`
+                    : `${bonus.amount.toLocaleString('ru-RU')} ₽ (до НДФЛ)`}
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => onRemove(bonus.id)}>
+                <Trash2 className="w-4 h-4 text-red-500" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Разделитель */}
+      {bonuses.length > 0 && <hr />}
+
+      {/* Форма добавления */}
+      <div className="grid grid-cols-1 gap-3">
         <div className="space-y-2">
           <Label htmlFor="bonus-date">Дата</Label>
           <Input
@@ -45,60 +84,37 @@ export function BonusManager({ bonuses, onAdd, onRemove }: BonusManagerProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="bonus-amount">Сумма (₽)</Label>
-          <Input
-            id="bonus-amount"
-            type="number"
-            min={0}
-            step={1000}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-2">
           <Label htmlFor="bonus-type">Тип</Label>
           <Select value={type} onValueChange={(v: BonusType) => setType(v)}>
             <SelectTrigger id="bonus-type">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="gross">В окладах (до НДФЛ)</SelectItem>
-              <SelectItem value="net">Своя сумма (на руки)</SelectItem>
+              <SelectItem value="salaries">В окладах</SelectItem>
+              <SelectItem value="custom">Своя сумма</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        <div className="flex items-end">
-          <Button onClick={handleAdd} className="w-full" disabled={!date || !amount}>
-            <Plus className="w-4 h-4 mr-2" />
-            Добавить
-          </Button>
-        </div>
-      </div>
-
-      {bonuses.length > 0 && (
         <div className="space-y-2">
-          {bonuses.map((bonus) => (
-            <div
-              key={bonus.id}
-              className="flex items-center justify-between p-3 rounded-lg border bg-card"
-            >
-              <div>
-                <span className="font-medium">
-                  {format(bonus.date, 'd MMMM yyyy', { locale: ru })}
-                </span>
-                <span className="text-muted-foreground ml-2">
-                  — {bonus.amount.toLocaleString('ru-RU')} ₽ ({bonus.type === 'gross' ? 'до НДФЛ' : 'на руки'})
-                </span>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => onRemove(bonus.id)}>
-                <Trash2 className="w-4 h-4 text-red-500" />
-              </Button>
-            </div>
-          ))}
+          <Label htmlFor="bonus-value">
+            {type === 'salaries' ? 'Кол-во окладов' : 'Сумма (₽, до НДФЛ)'}
+          </Label>
+          <Input
+            id="bonus-value"
+            type="number"
+            min={0}
+            step={type === 'salaries' ? 1 : 1000}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
         </div>
-      )}
+
+        <Button onClick={handleAdd} className="w-full" disabled={!date || !value}>
+          <Plus className="w-4 h-4 mr-2" />
+          Добавить
+        </Button>
+      </div>
     </div>
   );
 }
