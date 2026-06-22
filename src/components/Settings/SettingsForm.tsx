@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MoneyInput } from '@/components/ui/moneyinput';
 import type { SalarySettings, PaymentDistribution } from '@/types';
 
 interface SettingsFormProps {
@@ -62,13 +63,15 @@ function NumberField({
 export function SettingsForm({ settings, onChange }: SettingsFormProps) {
   return (
     <div className="space-y-6">
-      <NumberField
-        label="Оклад до НДФЛ (₽)"
-        value={settings.salary}
-        min={0}
-        step={1000}
-        onChange={(val) => onChange({ salary: val })}
-      />
+      <div className="space-y-2">
+        <Label htmlFor="input-salary">Оклад до НДФЛ (₽)</Label>
+        <MoneyInput
+          id="input-salary"
+          value={settings.salary}
+          min={0}
+          onChange={(val) => onChange({ salary: val })}
+        />
+      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <NumberField

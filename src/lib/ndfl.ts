@@ -1,6 +1,5 @@
-import type { NdfResult, TaxBracketBreakdown } from '@/types';
+import type { TaxBracketBreakdown } from '@/types';
 
-// Прогрессивная шкала НДФЛ 2026 (РФ)
 const TAX_BRACKETS: [number, number][] = [
   [2_400_000, 0.13],
   [5_000_000, 0.15],
@@ -9,35 +8,6 @@ const TAX_BRACKETS: [number, number][] = [
   [Infinity, 0.22],
 ];
 
-/**
- * Рассчитывает НДФЛ по прогрессивной шкале от накопленного дохода с начала года.
- * Ставка применяется только к сумме превышения порога.
- */
-export function calculateNdfl(accumulatedIncome: number): NdfResult {
-  if (accumulatedIncome <= 0) {
-    return { tax: 0, effectiveRate: 0 };
-  }
-
-  let totalTax = 0;
-  let previousThreshold = 0;
-
-  for (const [threshold, rate] of TAX_BRACKETS) {
-    if (accumulatedIncome <= previousThreshold) break;
-
-    const taxableInBracket = Math.min(accumulatedIncome, threshold) - previousThreshold;
-    totalTax += taxableInBracket * rate;
-    previousThreshold = threshold;
-  }
-
-  return {
-    tax: totalTax,
-    effectiveRate: (totalTax / accumulatedIncome) * 100,
-  };
-}
-
-/**
- * Рассчитывает НДФЛ для конкретной выплаты с разбивкой по ставкам.
- */
 export function calculateNdflForPayment(
   paymentGross: number,
   previousAccumulatedIncome: number,

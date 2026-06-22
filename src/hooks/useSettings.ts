@@ -10,24 +10,15 @@ const defaultSettings: SalarySettings = {
 };
 
 export function useSettings() {
-  const [settings, setSettings] = useState<SalarySettings | null>(() => loadSettings());
+  const [settings, setSettings] = useState<SalarySettings>(() => loadSettings() ?? defaultSettings);
 
   const updateSettings = useCallback((updates: Partial<SalarySettings>) => {
     setSettings((prev) => {
-      if (!prev) return null;
       const next = { ...prev, ...updates };
       saveSettings(next);
       return next;
     });
   }, []);
 
-  const initializeSettings = useCallback(() => {
-    const loaded = loadSettings();
-    setSettings(loaded ?? defaultSettings);
-    if (!loaded) {
-      saveSettings(defaultSettings);
-    }
-  }, []);
-
-  return { settings, updateSettings, initializeSettings };
+  return { settings, updateSettings };
 }

@@ -1,8 +1,10 @@
-import type { SalarySettings, Bonus } from '@/types';
-import { SalarySettingsSchema } from '@/types';
+import type { SalarySettings, Bonus, Vacation, VacationSettings } from '@/types';
+import { SalarySettingsSchema, BonusSchema, VacationSchema, VacationSettingsSchema } from '@/types';
 
 const SETTINGS_KEY = 'salary-buddy-settings';
 const BONUSES_KEY = 'salary-buddy-bonuses';
+const VACATIONS_KEY = 'salary-buddy-vacations';
+const VACATION_SETTINGS_KEY = 'salary-buddy-vacation-settings';
 
 /**
  * Сохраняет настройки зарплаты в localStorage.
@@ -50,8 +52,60 @@ export function loadBonuses(): Bonus[] {
     if (!raw) return [];
 
     const parsed = JSON.parse(raw);
-    return parsed as Bonus[];
+    return BonusSchema.array().parse(parsed);
   } catch {
     return [];
+  }
+}
+
+/**
+ * Сохраняет список отпусков в localStorage.
+ */
+export function saveVacations(vacations: Vacation[]): void {
+  try {
+    localStorage.setItem(VACATIONS_KEY, JSON.stringify(vacations));
+  } catch {
+    console.warn('Не удалось сохранить отпуска');
+  }
+}
+
+/**
+ * Загружает список отпусков из localStorage.
+ */
+export function loadVacations(): Vacation[] {
+  try {
+    const raw = localStorage.getItem(VACATIONS_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    return VacationSchema.array().parse(parsed);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Сохраняет настройки расчёта отпускных в localStorage.
+ */
+export function saveVacationSettings(settings: VacationSettings): void {
+  try {
+    localStorage.setItem(VACATION_SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    console.warn('Не удалось сохранить настройки отпусков');
+  }
+}
+
+/**
+ * Загружает настройки расчёта отпускных из localStorage.
+ */
+export function loadVacationSettings(): VacationSettings | null {
+  try {
+    const raw = localStorage.getItem(VACATION_SETTINGS_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    return VacationSettingsSchema.parse(parsed);
+  } catch {
+    return null;
   }
 }

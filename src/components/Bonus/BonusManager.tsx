@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DatePicker } from '@/components/ui/datepicker';
+import { MoneyInput } from '@/components/ui/moneyinput';
 import type { Bonus, BonusType } from '@/types';
+import { formatCurrency } from '@/lib/format';
 
 function pluralizeSalaries(n: number): string {
   const abs = Math.abs(n) % 100;
@@ -24,18 +27,18 @@ interface BonusManagerProps {
 }
 
 export function BonusManager({ bonuses, onAdd, onRemove }: BonusManagerProps) {
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState<Date | null>(null);
   const [value, setValue] = useState('');
   const [type, setType] = useState<BonusType>('salaries');
 
   const handleAdd = () => {
     if (!date || !value) return;
     onAdd({
-      date: new Date(date),
+      date,
       amount: Number(value),
       type,
     });
-    setDate('');
+    setDate(null);
     setValue('');
     setType('salaries');
   };
@@ -48,7 +51,7 @@ export function BonusManager({ bonuses, onAdd, onRemove }: BonusManagerProps) {
           {bonuses.map((bonus) => (
             <div
               key={bonus.id}
-              className="flex items-center justify-between p-3 rounded-lg border bg-card"
+               className="flex items-center justify-between p-3 rounded-lg border bg-card-secondary"
             >
               <div className="min-w-0">
                 <p className="font-medium">
@@ -57,7 +60,7 @@ export function BonusManager({ bonuses, onAdd, onRemove }: BonusManagerProps) {
                 <p className="text-muted-foreground text-sm">
                   {bonus.type === 'salaries'
                     ? `${bonus.amount} ${pluralizeSalaries(bonus.amount)}`
-                    : `${bonus.amount.toLocaleString('ru-RU')} ₽ (до НДФЛ)`}
+                    : `${formatCurrency(bonus.amount)} (до НДФЛ)`}
                 </p>
               </div>
               <Button variant="ghost" size="icon" onClick={() => onRemove(bonus.id)}>
@@ -75,12 +78,7 @@ export function BonusManager({ bonuses, onAdd, onRemove }: BonusManagerProps) {
       <div className="grid grid-cols-1 gap-3">
         <div className="space-y-2">
           <Label htmlFor="bonus-date">Дата</Label>
-          <Input
-            id="bonus-date"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+          <DatePicker value={date} onChange={setDate} />
         </div>
 
         <div className="space-y-2">
@@ -100,14 +98,23 @@ export function BonusManager({ bonuses, onAdd, onRemove }: BonusManagerProps) {
           <Label htmlFor="bonus-value">
             {type === 'salaries' ? 'Кол-во окладов' : 'Сумма (₽, до НДФЛ)'}
           </Label>
-          <Input
-            id="bonus-value"
-            type="number"
-            min={0}
-            step={type === 'salaries' ? 1 : 1000}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-          />
+          {type === 'salaries' ? (
+            <Input
+              id="bonus-value"
+              type="number"
+              min={0}
+              step={1}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+            />
+          ) : (
+            <MoneyInput
+              id="bonus-value"
+              value={Number(value) || 0}
+              min={0}
+              onChange={(val) => setValue(String(val))}
+            />
+          )}
         </div>
 
         <Button onClick={handleAdd} className="w-full" disabled={!date || !value}>

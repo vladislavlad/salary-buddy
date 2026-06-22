@@ -1,25 +1,66 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { format, getDaysInMonth, startOfWeek, addDays } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import type { PaymentInfo, CalendarData, BonusPaymentInfo } from '@/types';
+import type { PaymentInfo, CalendarData, BonusPaymentInfo, TaxBracketBreakdown } from '@/types';
 import { isDayOff } from '@/services/calendar';
 import { formatCurrency } from '@/lib/format';
+import { WEEKDAY_NAMES } from '@/lib/utils';
 
 const MONTH_NAMES = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
 ];
 
-const WEEKDAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+interface PaymentDetailsProps {
+  label?: string;
+  grossLabel: string;
+  gross: number;
+  ndfl: number;
+  net: number;
+  taxBreakdown?: TaxBracketBreakdown[];
+}
+
+function PaymentDetails({ label, grossLabel, gross, ndfl, net, taxBreakdown }: PaymentDetailsProps) {
+  return (
+    <>
+      {label && (
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Тип:</span>
+          <span>{label}</span>
+        </div>
+      )}
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">{grossLabel}:</span>
+        <span className="font-medium">{formatCurrency(gross)}</span>
+      </div>
+      {taxBreakdown?.map((b) => (
+        <div key={b.rate} className="flex justify-between">
+          <span className="text-muted-foreground">НДФЛ ({b.rate}%):</span>
+          <span className="text-red-500">-{formatCurrency(b.amount)}</span>
+        </div>
+      )) ?? (
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">НДФЛ:</span>
+          <span className="text-red-500">-{formatCurrency(ndfl)}</span>
+        </div>
+      )}
+      <div className="flex justify-between border-t pt-2 mt-1">
+        <span className="font-semibold">На руки:</span>
+        <span className="font-bold text-green-600">{formatCurrency(net)}</span>
+      </div>
+    </>
+  );
+}
 
 interface YearCalendarProps {
   year: number;
   payments: PaymentInfo[];
   bonusPayments: BonusPaymentInfo[];
+  vacationDays: Map<string, boolean>;
   calendarData: CalendarData | null;
 }
 
-export function YearCalendar({ year, payments, bonusPayments, calendarData }: YearCalendarProps) {
+export function YearCalendar({ year, payments, bonusPayments, vacationDays, calendarData }: YearCalendarProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const cellRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -33,14 +74,8 @@ export function YearCalendar({ year, payments, bonusPayments, calendarData }: Ye
   // Мапа дат премий
   const bonusMap = new Map<string, BonusPaymentInfo>();
   for (const b of bonusPayments) {
-    const key = format(b.date, 'yyyy-MM-dd');
-    bonusMap.set(key, b);
+    bonusMap.set(format(b.date, 'yyyy-MM-dd'), b);
   }
-
-  // Объединённая мапа для popover'а
-  const allItems = new Map<string, PaymentInfo | BonusPaymentInfo>();
-  for (const [k, v] of paymentMap) allItems.set(k, v);
-  for (const [k, v] of bonusMap) allItems.set(k, v);
 
   const getCellRef = useCallback((key: string): HTMLDivElement | null => {
     return cellRefs.current.get(key) ?? null;
@@ -57,6 +92,7 @@ export function YearCalendar({ year, payments, bonusPayments, calendarData }: Ye
             monthName={monthName}
             paymentMap={paymentMap}
             bonusMap={bonusMap}
+            vacationDays={vacationDays}
             calendarData={calendarData}
             cellRefs={cellRefs.current}
             onClickCell={(key) => setSelectedKey(key)}
@@ -65,9 +101,9 @@ export function YearCalendar({ year, payments, bonusPayments, calendarData }: Ye
       </div>
 
       {/* Всплывающее окно */}
-      {selectedKey && allItems.has(selectedKey) && (
+      {selectedKey && (paymentMap.has(selectedKey) || bonusMap.has(selectedKey)) && (
         <ItemPopover
-          item={allItems.get(selectedKey)!}
+          item={paymentMap.get(selectedKey) ?? bonusMap.get(selectedKey)!}
           anchorRef={getCellRef(selectedKey)}
           onClose={() => setSelectedKey(null)}
         />
@@ -121,64 +157,30 @@ function ItemPopover({
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
-        className="fixed z-50 w-[280px] rounded-lg border bg-card shadow-lg p-3 space-y-2 text-sm"
+          className="fixed z-50 w-[280px] rounded-lg border bg-card-secondary popover-shadow p-3 space-y-2 text-sm"
         style={{ top: position.top, left: position.left }}
       >
         <p className="font-semibold">
           {format(item.date, 'd MMMM yyyy', { locale: ru })}
         </p>
         {isPayment ? (
-          <>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Тип:</span>
-              <span>{item.type === 'advance' ? 'Аванс' : 'Зарплата'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Оклад:</span>
-              <span className="font-medium">{formatCurrency(item.gross)}</span>
-            </div>
-            {item.taxBreakdown?.map((b) => (
-              <div key={b.rate} className="flex justify-between">
-                <span className="text-muted-foreground">НДФЛ ({b.rate}%):</span>
-                <span className="text-red-500">-{formatCurrency(b.amount)}</span>
-              </div>
-            )) ?? (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">НДФЛ:</span>
-                <span className="text-red-500">-{formatCurrency(item.ndfl)}</span>
-              </div>
-            )}
-            <div className="flex justify-between border-t pt-2 mt-1">
-              <span className="font-semibold">На руки:</span>
-              <span className="font-bold text-green-600">{formatCurrency(item.net)}</span>
-            </div>
-          </>
+          <PaymentDetails
+            label={item.type === 'advance' ? 'Аванс' : item.type === 'salary' ? 'Зарплата' : 'Отпускные'}
+            grossLabel="До НДФЛ"
+            gross={item.gross}
+            ndfl={item.ndfl}
+            net={item.net}
+            taxBreakdown={item.taxBreakdown}
+          />
         ) : (
-          <>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Тип:</span>
-              <span>Премия</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">До НДФЛ:</span>
-              <span className="font-medium">{formatCurrency(item.gross)}</span>
-            </div>
-            {item.taxBreakdown?.map((b) => (
-              <div key={b.rate} className="flex justify-between">
-                <span className="text-muted-foreground">НДФЛ ({b.rate}%):</span>
-                <span className="text-red-500">-{formatCurrency(b.amount)}</span>
-              </div>
-            )) ?? (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">НДФЛ:</span>
-                <span className="text-red-500">-{formatCurrency(item.ndfl)}</span>
-              </div>
-            )}
-            <div className="flex justify-between border-t pt-2 mt-1">
-              <span className="font-semibold">На руки:</span>
-              <span className="font-bold text-green-600">{formatCurrency(item.net)}</span>
-            </div>
-          </>
+          <PaymentDetails
+            label="Премия"
+            grossLabel="До НДФЛ"
+            gross={item.gross}
+            ndfl={item.ndfl}
+            net={item.net}
+            taxBreakdown={item.taxBreakdown}
+          />
         )}
       </div>
     </>
@@ -191,12 +193,13 @@ interface MonthGridProps {
   monthName: string;
   paymentMap: Map<string, PaymentInfo>;
   bonusMap: Map<string, BonusPaymentInfo>;
+  vacationDays: Map<string, boolean>;
   calendarData: CalendarData | null;
   cellRefs: Map<string, HTMLDivElement>;
   onClickCell: (key: string) => void;
 }
 
-function MonthGrid({ year, month, monthName, paymentMap, bonusMap, calendarData, cellRefs, onClickCell }: MonthGridProps) {
+function MonthGrid({ year, month, monthName, paymentMap, bonusMap, vacationDays, calendarData, cellRefs, onClickCell }: MonthGridProps) {
   const daysInMonth = getDaysInMonth(new Date(year, month));
   const firstDay = new Date(year, month, 1);
   const startDate = startOfWeek(firstDay, { weekStartsOn: 1 });
@@ -221,6 +224,15 @@ function MonthGrid({ year, month, monthName, paymentMap, bonusMap, calendarData,
     weeks.push(currentWeek);
   }
 
+  // Собираем все даты отпуска в этом месяце для определения серий
+  const vacationDateSet = new Set<string>();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    if (vacationDays.has(key)) {
+      vacationDateSet.add(key);
+    }
+  }
+
   return (
     <div className="space-y-1">
       <h3 className="font-semibold text-center text-sm">{monthName}</h3>
@@ -241,33 +253,64 @@ function MonthGrid({ year, month, monthName, paymentMap, bonusMap, calendarData,
             day.getDate() === today.getDate() &&
             day.getMonth() === today.getMonth() &&
             day.getFullYear() === today.getFullYear();
+          const isVacationDay = vacationDateSet.has(dateKey);
+
+          // Определяем, является ли день началом/концом серии отпуска
+          let vacFirstInSeries = false;
+          let vacLastInSeries = false;
+          if (isVacationDay) {
+            const d = day.getDate();
+            const prevKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d - 1).padStart(2, '0')}`;
+            const nextKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d + 1).padStart(2, '0')}`;
+            vacFirstInSeries = !vacationDateSet.has(prevKey);
+            vacLastInSeries = d === daysInMonth || !vacationDateSet.has(nextKey);
+          }
 
           let cellClass = 'text-center py-1 text-xs rounded-md';
 
           if (!isCurrentMonth) {
             cellClass += ' text-muted-foreground/30';
+          } else if (payment && payment.type === 'vacation') {
+            // Отпускные — фиолетовый
+            cellClass += ' bg-purple-100 text-purple-800 font-bold cursor-pointer hover:bg-purple-200 transition-colors dark:bg-purple-900/40 dark:text-purple-300 dark:hover:bg-purple-900/60';
           } else if (payment) {
-            cellClass += ' bg-green-100 text-green-800 font-bold cursor-pointer hover:bg-green-200 transition-colors';
+            cellClass += ' bg-green-100 text-green-800 font-bold cursor-pointer hover:bg-green-200 transition-colors dark:bg-green-900/40 dark:text-green-300 dark:hover:bg-green-900/60';
           } else if (bonus) {
-            cellClass += ' bg-blue-100 text-blue-800 font-bold cursor-pointer hover:bg-blue-200 transition-colors';
+            cellClass += ' bg-blue-100 text-blue-800 font-bold cursor-pointer hover:bg-blue-200 transition-colors dark:bg-blue-900/40 dark:text-blue-300 dark:hover:bg-blue-900/60';
           } else if (isToday) {
-            cellClass += ' bg-yellow-100 text-yellow-800 font-bold';
+            cellClass += ' bg-yellow-100 text-yellow-800 font-bold dark:bg-yellow-900/40 dark:text-yellow-300';
+          } else if (isVacationDay) {
+            // Дни отпуска — светло-серый с округлением по краям серии
+            cellClass += ' bg-gray-200 dark:bg-gray-600/50';
+            if (vacFirstInSeries && vacLastInSeries) {
+              cellClass += ' rounded-md';
+            } else if (vacFirstInSeries) {
+              cellClass += ' rounded-l-md rounded-r-none';
+            } else if (vacLastInSeries) {
+              cellClass += ' rounded-r-md rounded-l-none';
+            } else {
+              cellClass += ' rounded-none';
+            }
           } else if (calendarData && isDayOff(day, calendarData)) {
-            cellClass += ' text-red-500';
+            cellClass += ' text-red-500 dark:text-red-400/70';
           }
 
           let tooltip = '';
           if (payment) {
-            tooltip = payment.type === 'advance' ? `Аванс ${formatCurrency(payment.net)}` : `Зарплата ${formatCurrency(payment.net)}`;
+            tooltip = formatCurrency(payment.net);
           } else if (bonus) {
-            tooltip = `Премия ${formatCurrency(bonus.net)}`;
+            tooltip = formatCurrency(bonus.net);
           } else if (isToday) {
             tooltip = 'Сегодня';
+          } else if (isVacationDay) {
+            tooltip = 'Отпуск';
           }
 
           return (
             <div
               key={idx}
+              role={hasItem ? 'button' : undefined}
+              tabIndex={hasItem ? 0 : undefined}
               className={cellClass + (tooltip ? ' relative group' : '')}
               ref={(el) => {
                 if (!hasItem || !el) {
@@ -277,10 +320,16 @@ function MonthGrid({ year, month, monthName, paymentMap, bonusMap, calendarData,
                 cellRefs.set(dateKey, el);
               }}
               onClick={() => hasItem && onClickCell(dateKey)}
+              onKeyDown={(e) => {
+                if (hasItem && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  onClickCell(dateKey);
+                }
+              }}
             >
               {day.getDate()}
               {tooltip && (
-                <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 text-xs rounded bg-popover text-popover-foreground border shadow-md whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-[60]">
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-0.5 text-xs rounded bg-card-secondary text-card-foreground border popover-shadow whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-[60]">
                   {tooltip}
                 </span>
               )}

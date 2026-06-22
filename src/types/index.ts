@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const MAX_PAYMENT_DAY = 28;
+
 // Способ распределения зарплаты
 export const PaymentDistributionSchema = z.enum(['fifty-fifty', 'by-worked-days']);
 export type PaymentDistribution = z.infer<typeof PaymentDistributionSchema>;
@@ -8,11 +10,25 @@ export type PaymentDistribution = z.infer<typeof PaymentDistributionSchema>;
 export const BonusTypeSchema = z.enum(['salaries', 'custom']);
 export type BonusType = z.infer<typeof BonusTypeSchema>;
 
+// Тип отпуска
+export const VacationTypeSchema = z.enum(['paid', 'unpaid']);
+export type VacationType = z.infer<typeof VacationTypeSchema>;
+
+// Отпуск
+export const VacationSchema = z.object({
+  id: z.string(),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  type: VacationTypeSchema,
+});
+
+export type Vacation = z.infer<typeof VacationSchema>;
+
 // Настройки зарплаты пользователя
 export const SalarySettingsSchema = z.object({
   salary: z.number().min(0, 'Оклад должен быть больше нуля'),
-  advanceDay: z.number().min(1).max(28, 'Число аванса от 1 до 28'),
-  salaryDay: z.number().min(1).max(28, 'Число зарплаты от 1 до 28'),
+  advanceDay: z.number().min(1).max(MAX_PAYMENT_DAY, `Число аванса от 1 до ${MAX_PAYMENT_DAY}`),
+  salaryDay: z.number().min(1).max(MAX_PAYMENT_DAY, `Число зарплаты от 1 до ${MAX_PAYMENT_DAY}`),
   distribution: PaymentDistributionSchema,
 });
 
@@ -32,12 +48,6 @@ export type Bonus = z.infer<typeof BonusSchema>;
 // Ключ — дата в формате YYYYMMDD, значение — код дня (0=рабочий, 1=нерабочий, 2=сокращённый, 8=праздник)
 export type CalendarData = Map<string, number>;
 
-// Результат расчёта НДФЛ по прогрессивной шкале
-export interface NdfResult {
-  tax: number; // сумма налога
-  effectiveRate: number; // эффективная ставка в %
-}
-
 // Разбивка НДФЛ по ставкам
 export interface TaxBracketBreakdown {
   rate: number; // ставка в % (13, 15, 18, 20, 22)
@@ -48,7 +58,7 @@ export interface TaxBracketBreakdown {
 export interface PaymentInfo {
   date: Date;
   originalDate: Date; // исходная дата до смещения на выходные
-  type: 'advance' | 'salary';
+  type: 'advance' | 'salary' | 'vacation';
   gross: number; // сумма до НДФЛ (оклад)
   ndfl: number; // НДФЛ
   net: number; // на руки
@@ -59,8 +69,8 @@ export interface PaymentInfo {
 // Результат расчёта зарплаты за год
 export interface YearCalculation {
   payments: PaymentInfo[];
-  bonuses: BonusPayment[];
   bonusPayments: BonusPaymentInfo[];
+  vacationDays: Map<string, boolean>; // YYYY-MM-DD -> true для дней отпуска
   totalGross: number;
   totalNdfl: number;
   totalNet: number;
@@ -75,8 +85,9 @@ export interface BonusPaymentInfo {
   taxBreakdown?: TaxBracketBreakdown[];
 }
 
-// Премия с рассчитанным НДФЛ
-export interface BonusPayment extends Bonus {
-  ndfl?: number;
-  net?: number;
-}
+// Настройки расчёта отпускных
+export const VacationSettingsSchema = z.object({
+  annualIncome12m: z.number().min(0).optional(), // доход за последние 12 мес (gross), undefined = salary * 12
+});
+
+export type VacationSettings = z.infer<typeof VacationSettingsSchema>;
