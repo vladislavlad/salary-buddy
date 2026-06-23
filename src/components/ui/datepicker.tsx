@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { addMonths, format, getDaysInMonth, getYear, startOfMonth, subMonths } from 'date-fns';
+import { addMonths, format, getDaysInMonth, getYear, isSameDay, startOfMonth, subMonths } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn, WEEKDAY_NAMES } from '@/lib/utils';
@@ -93,9 +93,6 @@ export function DatePicker({ value, onChange, placeholder = 'Выберите д
 
   // Кэшируем сегодняшнюю дату вне цикла
   const today = new Date();
-  const todayDate = today.getDate();
-  const todayMonth = today.getMonth();
-  const todayYear = getYear(today);
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -147,8 +144,9 @@ export function DatePicker({ value, onChange, placeholder = 'Выберите д
             ))}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const dayNum = i + 1;
-              const isSelected = value?.getDate() === dayNum && value.getMonth() === currentMonth && getYear(value) === currentYear;
-              const isToday = todayDate === dayNum && todayMonth === currentMonth && todayYear === currentYear;
+              const dayDate = new Date(currentYear, currentMonth, dayNum);
+              const isSelected = value ? isSameDay(value, dayDate) : false;
+              const isTodayFlag = isSameDay(today, dayDate);
 
               return (
                 <button
@@ -159,7 +157,7 @@ export function DatePicker({ value, onChange, placeholder = 'Выберите д
                     'h-9 w-10 text-sm rounded-md flex items-center justify-center transition-colors',
                     isSelected
                       ? 'bg-primary text-primary-foreground font-bold'
-                      : isToday
+                      : isTodayFlag
                         ? 'bg-accent text-foreground font-semibold'
                         : 'hover:bg-accent',
                   )}

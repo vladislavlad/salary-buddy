@@ -1,108 +1,79 @@
 import { useState } from 'react';
-import { format, differenceInCalendarDays } from 'date-fns';
-import { ru } from 'date-fns/locale';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DatePicker } from '@/components/ui/datepicker';
 import { MoneyInput } from '@/components/ui/moneyinput';
-import type { Vacation, VacationType, VacationSettings } from '@/types';
+import type { VacationType } from '@/types';
+import { useVacationsProvider } from '@/hooks/useVacationsProvider';
+import { VacationForm } from './VacationForm';
+import { VacationCard } from './VacationCard';
 
-interface VacationManagerProps {
-  vacations: Vacation[];
-  onAdd: (vacation: Omit<Vacation, 'id'>) => void;
-  onRemove: (id: string) => void;
-  vacationSettings: VacationSettings;
-  onUpdateVacationSettings: (partial: Partial<VacationSettings>) => void;
-}
+export function VacationManager() {
+  const { vacations, addVacation, updateVacation, removeVacation, vacationSettings, updateVacationSettings } = useVacationsProvider();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [addingNew, setAddingNew] = useState(false);
 
-export function VacationManager({ vacations, onAdd, onRemove, vacationSettings, onUpdateVacationSettings }: VacationManagerProps) {
-  const [startDate, setStartDate] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
-  const [type, setType] = useState<VacationType>('paid');
+  // Сортируем отпуска по дате начала
+  const sortedVacations = [...vacations].sort(
+    (a, b) => a.startDate.getTime() - b.startDate.getTime()
+  );
 
-  const handleAdd = () => {
-    if (!startDate || !endDate) return;
-    onAdd({
-      startDate,
-      endDate,
-      type,
-    });
-    setStartDate(null);
-    setEndDate(null);
-    setType('paid');
+  const handleSave = (data: { id?: string; startDate: Date; endDate: Date; type: VacationType }) => {
+    if (data.id) {
+      updateVacation(data.id, { startDate: data.startDate, endDate: data.endDate, type: data.type });
+    } else {
+      addVacation({ startDate: data.startDate, endDate: data.endDate, type: data.type });
+    }
+    setEditingId(null);
+    setAddingNew(false);
   };
 
-  const canAdd = !!(startDate && endDate && endDate >= startDate);
+  const handleDelete = (id: string) => {
+    removeVacation(id);
+  };
 
   return (
     <div className="space-y-4">
-      {/* Список отпусков */}
-      {vacations.length > 0 && (
-        <div className="space-y-2">
-          {vacations.map((v) => {
-            const days = differenceInCalendarDays(v.endDate, v.startDate) + 1;
-            return (
-              <div
-                key={v.id}
-                className="flex items-center justify-between p-3 rounded-lg border bg-card-secondary"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium">
-                    {format(v.startDate, 'd MMMM', { locale: ru })} — {format(v.endDate, 'd MMMM yyyy', { locale: ru })}
-                  </p>
-                  <p className="text-muted-foreground text-sm">
-                    {days} кал. дн.{v.type === 'paid' ? ', оплачиваемый' : ', за свой счёт'}
-                  </p>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => onRemove(v.id)}>
-                  <Trash2 className="w-4 h-4 text-red-500" />
-                </Button>
-              </div>
-            );
-          })}
+      {sortedVacations.length > 0 && (
+        <div className="space-y-1.5">
+          {sortedVacations.map((v) => (
+            <VacationCard
+              key={v.id}
+              vacation={v}
+              isEditing={editingId === v.id}
+              onEdit={(vac) => setEditingId(vac.id)}
+              onSave={handleSave}
+              onDelete={handleDelete}
+              onCancelEdit={() => setEditingId(null)}
+            />
+          ))}
         </div>
       )}
 
-      {/* Разделитель */}
-      {vacations.length > 0 && <hr />}
+      {sortedVacations.length === 0 && !addingNew && (
+        <p className="text-xs text-muted-foreground text-center py-4">
+          Добавьте первый отпуск, чтобы он учитывался в расчётах
+        </p>
+      )}
 
-      {/* Форма добавления */}
-      <div className="grid grid-cols-1 gap-3">
-        <div className="space-y-2">
-          <Label htmlFor="vacation-start">Дата начала</Label>
-          <DatePicker value={startDate} onChange={setStartDate} />
-        </div>
+      {sortedVacations.length > 0 && <hr />}
 
-        <div className="space-y-2">
-          <Label htmlFor="vacation-end">Дата окончания</Label>
-          <DatePicker value={endDate} onChange={setEndDate} />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="vacation-type">Тип отпуска</Label>
-          <Select value={type} onValueChange={(v: VacationType) => setType(v)}>
-            <SelectTrigger id="vacation-type">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="paid">Оплачиваемый</SelectItem>
-              <SelectItem value="unpaid">За свой счёт</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Button onClick={handleAdd} className="w-full" disabled={!canAdd}>
+      {!addingNew ? (
+        <Button onClick={() => setAddingNew(true)} className="w-full">
           <Plus className="w-4 h-4 mr-2" />
           Добавить
         </Button>
-      </div>
+      ) : (
+        <div className="rounded-lg border bg-card-secondary p-3">
+          <VacationForm
+            onSave={handleSave}
+            onCancel={() => setAddingNew(false)}
+          />
+        </div>
+      )}
 
-      {/* Разделитель */}
       <hr />
 
-      {/* Расширенные настройки отпускных */}
       <div className="space-y-3">
         <h3 className="text-sm font-medium text-muted-foreground">Расширенные настройки отпускных</h3>
         <div className="space-y-2">
@@ -110,10 +81,10 @@ export function VacationManager({ vacations, onAdd, onRemove, vacationSettings, 
           <MoneyInput
             id="vacation-income"
             value={vacationSettings.annualIncome12m ?? 0}
-            onChange={(val) => onUpdateVacationSettings({ annualIncome12m: val > 0 ? val : undefined })}
+            onChange={(val) => updateVacationSettings({ annualIncome12m: val > 0 ? val : undefined })}
           />
           <p className="text-xs text-muted-foreground">
-            Если не указано, считается как оклад × 12
+            Если не указано, считается из фактических окладов за год
           </p>
         </div>
       </div>

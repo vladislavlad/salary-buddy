@@ -11,14 +11,14 @@
     --card-secondary: 240 3% 97%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
+    --primary: 240 5.9% 16%;
     --primary-foreground: 0 0% 98%;
     --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+    --secondary-foreground: 240 5.9% 16%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
     --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --accent-foreground: 240 5.9% 16%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
@@ -32,6 +32,25 @@
     --radius: 0.5rem;
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
     --shadow-popover: 0 2px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05);
+
+    /* Payment cell colors — salary/advance */
+    --pay-salary-bg: #dcfce7;
+    --pay-salary-border: #bbf7d0;
+    --pay-salary-text: #166534;
+
+    /* Payment cell colors — vacation pay */
+    --pay-vacation-bg: #f3e8ff;
+    --pay-vacation-border: #e9d5ff;
+    --pay-vacation-text: #6b21a8;
+
+    /* Payment cell colors — bonus */
+    --pay-bonus-bg: #dbeafe;
+    --pay-bonus-border: #bfdbfe;
+    --pay-bonus-text: #1e40af;
+
+    /* Vacation day */
+    --vac-day-bg: #e5e7eb;
+    --vac-day-border: #d1d5db;
   }
 
   .dark {
@@ -42,14 +61,14 @@
     --card-secondary: 240 5% 12%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
+    --primary: 0 0% 92%;
+    --primary-foreground: 240 5.9% 16%;
     --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary-foreground: 0 0% 92%;
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
     --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent-foreground: 0 0% 92%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 3.7% 15.9%;
@@ -62,6 +81,25 @@
     --chart-5: 340 75% 55%;
     --shadow-card: 0 1px 3px rgba(255, 255, 255, 0.06), 0 1px 2px rgba(255, 255, 255, 0.03);
     --shadow-popover: 0 2px 6px rgba(255, 255, 255, 0.04), 0 1px 3px rgba(255, 255, 255, 0.02);
+
+    /* Payment cell colors — salary/advance */
+    --pay-salary-bg: rgba(4, 120, 57, 0.4);
+    --pay-salary-border: rgba(4, 120, 57, 0.6);
+    --pay-salary-text: #86efac;
+
+    /* Payment cell colors — vacation pay */
+    --pay-vacation-bg: rgba(108, 43, 217, 0.4);
+    --pay-vacation-border: rgba(108, 43, 217, 0.6);
+    --pay-vacation-text: #d8b4fe;
+
+    /* Payment cell colors — bonus */
+    --pay-bonus-bg: rgba(30, 64, 175, 0.5);
+    --pay-bonus-border: rgba(59, 130, 246, 0.7);
+    --pay-bonus-text: #bfdbfe;
+
+    /* Vacation day */
+    --vac-day-bg: rgba(82, 82, 91, 0.5);
+    --vac-day-border: rgba(113, 113, 122, 0.6);
   }
 }
 
@@ -109,4 +147,9 @@
 .sidebar-scroll {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--border)) transparent;
+}
+
+/* Stripe cells — multi-payment background with dark theme support */
+.calendar-stripe-cell {
+  background-image: var(--stripe-gradient);
 }

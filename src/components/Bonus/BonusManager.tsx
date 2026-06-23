@@ -1,127 +1,74 @@
 import { useState } from 'react';
-import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DatePicker } from '@/components/ui/datepicker';
-import { MoneyInput } from '@/components/ui/moneyinput';
-import type { Bonus, BonusType } from '@/types';
-import { formatCurrency } from '@/lib/format';
+import type { BonusType } from '@/types';
+import { useBonusesProvider } from '@/hooks/useBonusesProvider';
+import { BonusForm } from './BonusForm';
+import { BonusCard } from './BonusCard';
 
-function pluralizeSalaries(n: number): string {
-  const abs = Math.abs(n) % 100;
-  const lastDigit = abs % 10;
-  if (abs > 10 && abs < 20) return 'окладов';
-  if (lastDigit === 1) return 'оклад';
-  if (lastDigit >= 2 && lastDigit <= 4) return 'оклада';
-  return 'окладов';
-}
+export function BonusManager() {
+  const { bonuses, addBonus, updateBonus, removeBonus } = useBonusesProvider();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [addingNew, setAddingNew] = useState(false);
 
-interface BonusManagerProps {
-  bonuses: Bonus[];
-  onAdd: (bonus: Omit<Bonus, 'id'>) => void;
-  onRemove: (id: string) => void;
-}
+  // Сортируем премии по дате
+  const sortedBonuses = [...bonuses].sort(
+    (a, b) => a.date.getTime() - b.date.getTime()
+  );
 
-export function BonusManager({ bonuses, onAdd, onRemove }: BonusManagerProps) {
-  const [date, setDate] = useState<Date | null>(null);
-  const [value, setValue] = useState('');
-  const [type, setType] = useState<BonusType>('salaries');
+  const handleSave = (data: { id?: string; date: Date; amount: number; type: BonusType }) => {
+    if (data.id) {
+      updateBonus(data.id, { date: data.date, amount: data.amount, type: data.type });
+    } else {
+      addBonus({ date: data.date, amount: data.amount, type: data.type });
+    }
+    setEditingId(null);
+    setAddingNew(false);
+  };
 
-  const handleAdd = () => {
-    if (!date || !value) return;
-    onAdd({
-      date,
-      amount: Number(value),
-      type,
-    });
-    setDate(null);
-    setValue('');
-    setType('salaries');
+  const handleDelete = (id: string) => {
+    removeBonus(id);
   };
 
   return (
     <div className="space-y-4">
-      {/* Список добавленных премий */}
-      {bonuses.length > 0 && (
-        <div className="space-y-2">
-          {bonuses.map((bonus) => (
-            <div
+      {sortedBonuses.length > 0 && (
+        <div className="space-y-1.5">
+          {sortedBonuses.map((bonus) => (
+            <BonusCard
               key={bonus.id}
-               className="flex items-center justify-between p-3 rounded-lg border bg-card-secondary"
-            >
-              <div className="min-w-0">
-                <p className="font-medium">
-                  {format(bonus.date, 'd MMMM yyyy', { locale: ru })}
-                </p>
-                <p className="text-muted-foreground text-sm">
-                  {bonus.type === 'salaries'
-                    ? `${bonus.amount} ${pluralizeSalaries(bonus.amount)}`
-                    : `${formatCurrency(bonus.amount)} (до НДФЛ)`}
-                </p>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => onRemove(bonus.id)}>
-                <Trash2 className="w-4 h-4 text-red-500" />
-              </Button>
-            </div>
+              bonus={bonus}
+              isEditing={editingId === bonus.id}
+              onEdit={(b) => setEditingId(b.id)}
+              onSave={handleSave}
+              onDelete={handleDelete}
+              onCancelEdit={() => setEditingId(null)}
+            />
           ))}
         </div>
       )}
 
-      {/* Разделитель */}
-      {bonuses.length > 0 && <hr />}
+      {sortedBonuses.length === 0 && !addingNew && (
+        <p className="text-xs text-muted-foreground text-center py-4">
+          Добавьте первую премию, чтобы она учитывалась в расчётах
+        </p>
+      )}
 
-      {/* Форма добавления */}
-      <div className="grid grid-cols-1 gap-3">
-        <div className="space-y-2">
-          <Label htmlFor="bonus-date">Дата</Label>
-          <DatePicker value={date} onChange={setDate} />
-        </div>
+      {sortedBonuses.length > 0 && <hr />}
 
-        <div className="space-y-2">
-          <Label htmlFor="bonus-type">Тип</Label>
-          <Select value={type} onValueChange={(v: BonusType) => setType(v)}>
-            <SelectTrigger id="bonus-type">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="salaries">В окладах</SelectItem>
-              <SelectItem value="custom">Своя сумма</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="bonus-value">
-            {type === 'salaries' ? 'Кол-во окладов' : 'Сумма (₽, до НДФЛ)'}
-          </Label>
-          {type === 'salaries' ? (
-            <Input
-              id="bonus-value"
-              type="number"
-              min={0}
-              step={1}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-            />
-          ) : (
-            <MoneyInput
-              id="bonus-value"
-              value={Number(value) || 0}
-              min={0}
-              onChange={(val) => setValue(String(val))}
-            />
-          )}
-        </div>
-
-        <Button onClick={handleAdd} className="w-full" disabled={!date || !value}>
+      {!addingNew ? (
+        <Button onClick={() => setAddingNew(true)} className="w-full">
           <Plus className="w-4 h-4 mr-2" />
           Добавить
         </Button>
-      </div>
+      ) : (
+        <div className="rounded-lg border bg-card-secondary p-3">
+          <BonusForm
+            onSave={handleSave}
+            onCancel={() => setAddingNew(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }

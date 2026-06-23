@@ -19,13 +19,26 @@ export function saveSettings(settings: SalarySettings): void {
 
 /**
  * Загружает настройки зарплаты из localStorage.
+ * Мигрирует старый формат (salary: number) в новый (salaryChanges: []).
  */
 export function loadSettings(): SalarySettings | null {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return null;
 
-    const parsed = JSON.parse(raw);
+    let parsed = JSON.parse(raw);
+
+    // Миграция: старый формат с salary -> salaryChanges + rename полей
+    if ('salary' in parsed && !('salaryChanges' in parsed)) {
+      parsed = {
+        advancePaymentDay: parsed.advanceDay ?? 15,
+        salaryPaymentDay: parsed.salaryDay ?? 28,
+        distribution: parsed.distribution ?? 'by-worked-days',
+        salaryChanges: [],
+      };
+      saveSettings(parsed as SalarySettings);
+    }
+
     return SalarySettingsSchema.parse(parsed);
   } catch {
     return null;

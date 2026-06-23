@@ -1,49 +1,65 @@
 import type { TaxBracketBreakdown } from '@/types';
 
-const TAX_BRACKETS: [number, number][] = [
-  [2_400_000, 0.13],
-  [5_000_000, 0.15],
-  [20_000_000, 0.18],
-  [50_000_000, 0.20],
-  [Infinity, 0.22],
-];
+// Конфигурация НДФЛ по годам
+interface NdflYearConfig {
+  brackets: [threshold: number, rate: number][];
+}
+
+function computeBracketTaxes(accumulatedIncome: number, brackets: [number, number][]): TaxBracketBreakdown[] {
+  const result: TaxBracketBreakdown[] = [];
+  let previousThreshold = 0;
+  for (const [threshold, rate] of brackets) {
+    if (accumulatedIncome <= previousThreshold) break;
+    const taxableInBracket = Math.min(accumulatedIncome, threshold) - previousThreshold;
+    result.push({ rate: rate * 100, amount: taxableInBracket * rate });
+    previousThreshold = threshold;
+  }
+  return result;
+}
+
+const NDFL_PROGRESSIVE_1: NdflYearConfig = {
+  brackets: [
+    [5_000_000, 0.13],
+    [Infinity, 0.15],
+  ],
+};
+
+const NDFL_PROGRESSIVE_2: NdflYearConfig = {
+  brackets: [
+    [2_400_000, 0.13],
+    [5_000_000, 0.15],
+    [20_000_000, 0.18],
+    [50_000_000, 0.20],
+    [Infinity, 0.22],
+  ],
+};
+
+const NDFL_CONFIGS: Record<number, NdflYearConfig> = {
+  2023: NDFL_PROGRESSIVE_1,
+  2024: NDFL_PROGRESSIVE_1,
+  2025: NDFL_PROGRESSIVE_2,
+  2026: NDFL_PROGRESSIVE_2,
+};
+
+function getNdflConfig(year: number): NdflYearConfig {
+  return NDFL_CONFIGS[year] ?? NDFL_PROGRESSIVE_2;
+}
 
 export function calculateNdflForPayment(
   paymentGross: number,
   previousAccumulatedIncome: number,
-  previousTaxPaid: number
+  previousTaxPaid: number,
+  year: number
 ): { ndfl: number; newAccumulatedIncome: number; newTotalTax: number; breakdown: TaxBracketBreakdown[] } {
+  const config = getNdflConfig(year);
+  const TAX_BRACKETS = config.brackets;
+
   const newAccumulatedIncome = previousAccumulatedIncome + paymentGross;
 
-  // Считаем НДФЛ по каждому диапазону для нового накопленного дохода
-  let totalNewTax = 0;
-  let previousThreshold = 0;
-  const newBracketTaxes: TaxBracketBreakdown[] = [];
-
-  for (const [threshold, rate] of TAX_BRACKETS) {
-    if (newAccumulatedIncome <= previousThreshold) break;
-
-    const taxableInBracket = Math.min(newAccumulatedIncome, threshold) - previousThreshold;
-    const taxInBracket = taxableInBracket * rate;
-    totalNewTax += taxInBracket;
-    newBracketTaxes.push({ rate: rate * 100, amount: taxInBracket });
-    previousThreshold = threshold;
-  }
-
-  // Считаем НДФЛ по каждому диапазону для предыдущего накопленного дохода
-  let prevTotalTax = 0;
-  previousThreshold = 0;
-  const prevBracketTaxes: TaxBracketBreakdown[] = [];
-
-  for (const [threshold, rate] of TAX_BRACKETS) {
-    if (previousAccumulatedIncome <= previousThreshold) break;
-
-    const taxableInBracket = Math.min(previousAccumulatedIncome, threshold) - previousThreshold;
-    const taxInBracket = taxableInBracket * rate;
-    prevTotalTax += taxInBracket;
-    prevBracketTaxes.push({ rate: rate * 100, amount: taxInBracket });
-    previousThreshold = threshold;
-  }
+  // Считаем НДФЛ по каждому диапазону для нового и предыдущего накопленного дохода
+  const newBracketTaxes = computeBracketTaxes(newAccumulatedIncome, TAX_BRACKETS);
+  const prevBracketTaxes = computeBracketTaxes(previousAccumulatedIncome, TAX_BRACKETS);
+  const totalNewTax = newBracketTaxes.reduce((sum, b) => sum + b.amount, 0);
 
   // Разница по каждой ставке — это НДФЛ именно с этой выплаты
   const allRates = new Set<number>();

@@ -60,13 +60,13 @@ export function isDayOff(date: Date, calendarData: CalendarData): boolean {
  * Находит ближайший рабочий день, смещаясь назад от указанной даты.
  */
 export function findPreviousWorkday(date: Date, calendarData: CalendarData): Date {
-  let current = new Date(date);
+  const result = new Date(date);
 
-  while (isDayOff(current, calendarData)) {
-    current.setDate(current.getDate() - 1);
+  while (isDayOff(result, calendarData)) {
+    result.setDate(result.getDate() - 1);
   }
 
-  return current;
+  return result;
 }
 
 /**
