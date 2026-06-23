@@ -3,7 +3,7 @@ import { ru } from 'date-fns/locale';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { SalaryChange } from '@/types';
-import { formatCurrency } from '@/lib/format';
+import { Money } from '@/components/ui/money';
 import { SalaryChangeForm } from './SalaryChangeForm';
 
 function SalaryChangeRowContent({
@@ -21,7 +21,7 @@ function SalaryChangeRowContent({
     <div className="flex items-center justify-between group">
       <div className="min-w-0">
         <p className="font-medium">С {dateStr}</p>
-        <p className="text-muted-foreground text-sm">{formatCurrency(change.amount)}</p>
+        <p className="text-muted-foreground text-sm"><Money amount={change.amount} /></p>
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(change)}>

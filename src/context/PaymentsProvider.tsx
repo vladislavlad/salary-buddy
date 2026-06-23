@@ -6,6 +6,7 @@ import { calculateYear } from '@/lib/calculation-engine';
 import { useSalaryProvider } from '@/hooks/useSalaryProvider';
 import { useBonusesProvider } from '@/hooks/useBonusesProvider';
 import { useVacationsProvider } from '@/hooks/useVacationsProvider';
+import { useFactsProvider } from '@/hooks/useFactsProvider';
 import { PaymentsContext } from './contexts';
 import { MIN_DISPLAY_YEAR, MAX_DISPLAY_YEAR } from '@/lib/utils';
 
@@ -21,6 +22,7 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
   const { settings } = useSalaryProvider();
   const { bonuses } = useBonusesProvider();
   const { vacations, vacationSettings } = useVacationsProvider();
+  const { facts } = useFactsProvider();
 
   const displayYears = useMemo(() => range(MIN_DISPLAY_YEAR, MAX_DISPLAY_YEAR), []);
 
@@ -62,13 +64,14 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
         bonuses,
         vacations,
         vacationSettings,
-        calendarData
+        calendarData,
+        facts
       );
       results.set(year, result);
     }
 
     return results;
-  }, [settings, bonuses, vacations, vacationSettings, displayYears, calendars]);
+  }, [settings, bonuses, vacations, vacationSettings, facts, displayYears, calendars]);
 
   const value = useMemo(
     () => ({

@@ -13,9 +13,11 @@ import { useSalaryProvider } from '@/hooks/useSalaryProvider';
 import { BonusesProvider } from '@/context/BonusesProvider';
 import { VacationsProvider } from '@/context/VacationsProvider';
 import { PaymentsProvider } from '@/context/PaymentsProvider';
+import { FactsProvider } from '@/context/FactsProvider';
 import { usePaymentsForYear, useCalendarForYear } from '@/hooks/usePaymentsHooks';
-import { formatCurrency } from '@/lib/format';
+import { Money } from '@/components/ui/money';
 import { MIN_DISPLAY_YEAR, MAX_DISPLAY_YEAR } from '@/lib/utils';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -33,7 +35,7 @@ function AppContent() {
   // Итоги за год — суммируем из единого массива выплат
   const totalGross = useMemo(() => {
     if (!calculation) return 0;
-    return calculation.payments.reduce((s, p) => s + p.gross, 0);
+    return calculation.payments.reduce((s, p) => s + (p.fact ?? p.gross), 0);
   }, [calculation]);
   const totalNdfl = useMemo(() => {
     if (!calculation) return 0;
@@ -208,7 +210,7 @@ function AppContent() {
                   <CardTitle className="text-sm text-muted-foreground">Общий доход (до НДФЛ)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-xl font-bold">{formatCurrency(totalGross)}</p>
+                  <p className="text-xl font-bold"><Money amount={totalGross} /></p>
                 </CardContent>
               </Card>
 
@@ -217,7 +219,7 @@ function AppContent() {
                   <CardTitle className="text-sm text-muted-foreground">НДФЛ за год</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-xl font-bold text-red-500">{formatCurrency(totalNdfl)}</p>
+                  <p className="text-xl font-bold text-red-500"><Money amount={totalNdfl} /></p>
                 </CardContent>
               </Card>
 
@@ -226,7 +228,7 @@ function AppContent() {
                   <CardTitle className="text-sm text-muted-foreground">На руки за год</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-xl font-bold text-green-600">{formatCurrency(totalNet)}</p>
+                  <p className="text-xl font-bold text-green-600"><Money amount={totalNet} /></p>
                 </CardContent>
               </Card>
             </div>
@@ -242,9 +244,13 @@ export function App() {
     <SalaryProvider>
       <BonusesProvider>
         <VacationsProvider>
-          <PaymentsProvider>
-            <AppContent />
-          </PaymentsProvider>
+          <FactsProvider>
+            <PaymentsProvider>
+              <TooltipProvider delayDuration={200}>
+                <AppContent />
+              </TooltipProvider>
+            </PaymentsProvider>
+          </FactsProvider>
         </VacationsProvider>
       </BonusesProvider>
     </SalaryProvider>

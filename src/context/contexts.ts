@@ -29,7 +29,13 @@ interface PaymentsContextValue {
   displayYears: number[];
 }
 
+interface FactsContextValue {
+  facts: Record<string, number>; // paymentId -> factGross
+  setFact: (paymentId: string, factGross?: number) => void;
+}
+
 export const BonusesContext = createContext<BonusesContextValue | null>(null);
 export const VacationsContext = createContext<VacationsContextValue | null>(null);
 export const SalaryContext = createContext<SalaryContextValue | null>(null);
 export const PaymentsContext = createContext<PaymentsContextValue | null>(null);
+export const FactsContext = createContext<FactsContextValue | null>(null);

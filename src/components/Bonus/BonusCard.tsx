@@ -3,7 +3,7 @@ import { ru } from 'date-fns/locale';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { BonusType } from '@/types';
-import { formatCurrency } from '@/lib/format';
+import { Money } from '@/components/ui/money';
 import { BonusForm } from './BonusForm';
 
 function pluralizeSalaries(n: number): string {
@@ -33,7 +33,7 @@ function BonusRowContent({
         <p className="text-muted-foreground text-sm">
           {bonus.type === 'salaries'
             ? `${bonus.amount} ${pluralizeSalaries(bonus.amount)}`
-            : `${formatCurrency(bonus.amount)} (до НДФЛ)`}
+            : <><Money amount={bonus.amount} /> (до НДФЛ)</>}
         </p>
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

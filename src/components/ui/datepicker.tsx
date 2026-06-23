@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { addMonths, format, getDaysInMonth, getYear, isSameDay, startOfMonth, subMonths } from 'date-fns';
+import { addMonths, format, getDaysInMonth, getYear, isSameDay, startOfMonth, subMonths, addYears, subYears } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn, WEEKDAY_NAMES } from '@/lib/utils';
@@ -17,6 +17,7 @@ const POPUP_WIDTH = 310;
 export function DatePicker({ value, onChange, placeholder = 'Выберите дату', className }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [viewDate, setViewDate] = useState(value ? startOfMonth(value) : startOfMonth(new Date()));
+  const [viewMode, setViewMode] = useState<'day' | 'year'>('day');
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -36,7 +37,7 @@ export function DatePicker({ value, onChange, placeholder = 'Выберите д
 
     // Если не влезает снизу — показываем над кнопкой
     if (top + POPUP_HEIGHT > viewportH) {
-      top = triggerRect.top - POPUP_HEIGHT - 8;
+      top = triggerRect.top - POPUP_HEIGHT - 4;
     }
 
     // Если не влезает справа — сдвигаем влево
@@ -82,14 +83,24 @@ export function DatePicker({ value, onChange, placeholder = 'Выберите д
     setIsOpen(false);
   }, [onChange]);
 
-  const prevMonth = () => setViewDate(subMonths(viewDate, 1));
-  const nextMonth = () => setViewDate(addMonths(viewDate, 1));
+  // Навигация зависит от режима
+  const prevPage = useCallback(() => {
+    if (viewMode === 'year') setViewDate(subYears(viewDate, 1));
+    else setViewDate(subMonths(viewDate, 1));
+  }, [viewMode, viewDate]);
+  const nextPage = useCallback(() => {
+    if (viewMode === 'year') setViewDate(addYears(viewDate, 1));
+    else setViewDate(addMonths(viewDate, 1));
+  }, [viewMode, viewDate]);
 
-  const currentMonth = viewDate.getMonth();
+  // Переключение в режим года по клику на заголовок
+  const switchToYear = () => setViewMode('year');
+  const selectMonth = (month: number) => {
+    setViewDate(new Date(getYear(viewDate), month, 1));
+    setViewMode('day');
+  };
+
   const currentYear = getYear(viewDate);
-  const daysInMonth = getDaysInMonth(viewDate);
-  const firstDayOfWeek = startOfMonth(viewDate).getDay();
-  const padding = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
 
   // Кэшируем сегодняшнюю дату вне цикла
   const today = new Date();
@@ -100,11 +111,11 @@ export function DatePicker({ value, onChange, placeholder = 'Выберите д
         ref={triggerRef}
         type="button"
         className={cn(
-          'flex h-9 w-full items-center justify-between rounded-md border border-input bg-card-secondary px-3 py-2 text-sm shadow-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+          'flex h-8 w-full items-center justify-between rounded-md border border-input bg-card-secondary px-3 py-1 text-sm shadow-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:border-ring',
           !value && 'text-muted-foreground',
           className,
         )}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => { if (!isOpen) setViewMode('day'); setIsOpen(!isOpen); }}
       >
         <span>{value ? format(value, 'd MMMM yyyy', { locale: ru }) : placeholder}</span>
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2 shrink-0 opacity-50">
@@ -116,57 +127,103 @@ export function DatePicker({ value, onChange, placeholder = 'Выберите д
       </button>
 
       {isOpen && (
-        <div ref={popupRef} style={popupStyle} className="rounded-lg border bg-card-secondary text-card-foreground popover-shadow p-4 animate-in fade-in zoom-in-95">
-          {/* Навигация по месяцам */}
-          <div className="flex items-center justify-between mb-3">
-            <button type="button" onClick={prevMonth} className="p-1 rounded hover:bg-accent transition-colors" aria-label="Предыдущий месяц">
+        <div ref={popupRef} style={{ ...popupStyle, width: POPUP_WIDTH, ...(viewMode === 'year' ? { height: 240 } : {}) }} className="rounded-lg border bg-card-secondary text-card-foreground popover-shadow p-3 animate-in fade-in zoom-in-95 flex flex-col">
+          {/* Навигация */}
+          <div className="flex items-center justify-between mb-2 shrink-0">
+            <button type="button" onClick={prevPage} className="p-1 rounded hover:bg-accent transition-colors" aria-label="Назад">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-sm font-medium">{format(viewDate, 'MMMM yyyy', { locale: ru })}</span>
-            <button type="button" onClick={nextMonth} className="p-1 rounded hover:bg-accent transition-colors" aria-label="Следующий месяц">
+            {viewMode === 'day' ? (
+              <span className="text-sm font-medium cursor-pointer hover:underline" onClick={switchToYear}>
+                {format(viewDate, 'MMMM yyyy', { locale: ru })}
+              </span>
+            ) : (
+              <span className="text-sm font-medium">{currentYear}</span>
+            )}
+            <button type="button" onClick={nextPage} className="p-1 rounded hover:bg-accent transition-colors" aria-label="Вперёд">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Дни недели */}
-          <div className="grid grid-cols-7 gap-1 mb-1">
-            {WEEKDAY_NAMES.map((d) => (
-              <div key={d} className="text-center text-[10px] font-medium text-muted-foreground py-1">
-                {d}
-              </div>
-            ))}
-          </div>
+          {/* Контент */}
+          {viewMode === 'year' ? (
+            <div className="flex-1 flex items-center justify-center">
+              {/* Режим выбора месяца */}
+              <div className="grid grid-cols-4 gap-x-1.5 gap-y-3 w-full">
+                {Array.from({ length: 12 }).map((_, m) => {
+                  const monthDate = new Date(currentYear, m, 1);
+                  const isSelectedMonth = value ? getYear(value) === currentYear && value.getMonth() === m : false;
 
-          {/* Ячейки дней */}
-          <div className="grid grid-cols-7 gap-1" key={`${currentYear}-${currentMonth}`}>
-            {Array.from({ length: padding }).map((_, i) => (
-              <div key={`pad-${i}`} />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const dayNum = i + 1;
-              const dayDate = new Date(currentYear, currentMonth, dayNum);
-              const isSelected = value ? isSameDay(value, dayDate) : false;
-              const isTodayFlag = isSameDay(today, dayDate);
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => selectMonth(m)}
+                      className={cn(
+                        'h-9 text-sm rounded-md flex items-center justify-center transition-colors',
+                        isSelectedMonth
+                          ? 'bg-primary text-primary-foreground font-bold'
+                            : value === null && getYear(today) === currentYear && today.getMonth() === m
+                            ? 'bg-accent text-foreground font-semibold'
+                            : 'hover:bg-accent',
+                      )}
+                    >
+                      {format(monthDate, 'MMM', { locale: ru }).replace('.', '')}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            (() => {
+              const currentMonth = viewDate.getMonth();
+              const daysInMonth = getDaysInMonth(viewDate);
+              const firstDayOfWeek = startOfMonth(viewDate).getDay();
+              const padding = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
 
               return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => handleSelect(new Date(currentYear, currentMonth, dayNum))}
-                  className={cn(
-                    'h-9 w-10 text-sm rounded-md flex items-center justify-center transition-colors',
-                    isSelected
-                      ? 'bg-primary text-primary-foreground font-bold'
-                      : isTodayFlag
-                        ? 'bg-accent text-foreground font-semibold'
-                        : 'hover:bg-accent',
-                  )}
-                >
-                  {dayNum}
-                </button>
+                <>
+                  {/* Дни недели */}
+                  <div className="grid grid-cols-7 gap-0.5 mb-0.5">
+                    {WEEKDAY_NAMES.map((d) => (
+                      <div key={d} className="text-center text-[10px] font-medium text-muted-foreground py-0.5">
+                        {d}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Ячейки дней */}
+                  <div className="grid grid-cols-7 gap-0.5" key={`${currentYear}-${currentMonth}`}>
+                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                      const dayNum = i + 1;
+                      const dayDate = new Date(currentYear, currentMonth, dayNum);
+                      const isSelected = value ? isSameDay(value, dayDate) : false;
+                      const isTodayFlag = isSameDay(today, dayDate);
+
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => handleSelect(new Date(currentYear, currentMonth, dayNum))}
+                          style={i === 0 ? { gridColumnStart: padding + 1 } : undefined}
+                          className={cn(
+                            'h-8 w-10 text-sm rounded-md flex items-center justify-center transition-colors',
+                            isSelected
+                              ? 'bg-primary text-primary-foreground font-bold'
+                              : isTodayFlag
+                                ? 'bg-accent text-foreground font-semibold'
+                                : 'hover:bg-accent',
+                          )}
+                        >
+                          {dayNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
               );
-            })}
-          </div>
+            })()
+          )}
         </div>
       )}
     </div>

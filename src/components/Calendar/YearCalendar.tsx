@@ -1,10 +1,16 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useMemo, useLayoutEffect, useRef, useState } from 'react';
 import { format, getDaysInMonth, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import type { Payment, CalendarData, TaxBracketBreakdown } from '@/types';
+import { useFactsProvider } from '@/hooks/useFactsProvider';
 import { isDayOff } from '@/services/calendar';
 import { formatCurrency } from '@/lib/format';
+import { Money } from '@/components/ui/money';
 import { cn, WEEKDAY_NAMES, dateToKey } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { grossFromNet } from '@/lib/calculation-engine';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 const MONTH_NAMES = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
@@ -72,16 +78,16 @@ function getStripeStyle(types: string[]): React.CSSProperties | undefined {
 
 interface PaymentDetailsProps {
   label?: string;
-  grossLabel: string;
   salaryAmount?: number;
   isBonus?: boolean;
   gross: number;
+  fact?: number;
   ndfls: TaxBracketBreakdown[];
   ndfl: number;
-  yearToDateGross?: number;
+  net: number;
 }
 
-function PaymentDetails({ label, grossLabel, salaryAmount, isBonus, gross, ndfls, ndfl, yearToDateGross }: PaymentDetailsProps) {
+function PaymentDetails({ label, salaryAmount, isBonus, gross, fact, ndfls, ndfl, net }: PaymentDetailsProps) {
   return (
     <>
       {label && (
@@ -93,32 +99,36 @@ function PaymentDetails({ label, grossLabel, salaryAmount, isBonus, gross, ndfls
       {salaryAmount != null && salaryAmount > 0 && !isBonus && (
         <div className="flex justify-between">
           <span className="text-muted-foreground">Оклад:</span>
-          <span>{formatCurrency(salaryAmount)}</span>
+          <span><Money amount={salaryAmount} /></span>
         </div>
       )}
       <div className="flex justify-between">
-        <span className="text-muted-foreground">{grossLabel}:</span>
-        <span className="font-medium">{formatCurrency(gross)}</span>
+        <span className="text-muted-foreground">План:</span>
+        <span className="font-medium"><Money amount={gross} /></span>
       </div>
+      {fact != null && (
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Факт:</span>
+          <span className="font-medium text-blue-600"><Money amount={fact} /></span>
+        </div>
+      )}
       {ndfls.length > 0 ? (
         ndfls.map((b) => (
           <div key={b.rate} className="flex justify-between">
             <span className="text-muted-foreground">НДФЛ ({b.rate}%):</span>
-            <span className="text-red-500">-{formatCurrency(b.amount)}</span>
+            <span className="text-red-500">-<Money amount={b.amount} /></span>
           </div>
         ))
       ) : (
         <div className="flex justify-between">
           <span className="text-muted-foreground">НДФЛ:</span>
-          <span className="text-red-500">-{formatCurrency(ndfl)}</span>
+          <span className="text-red-500">-<Money amount={ndfl} /></span>
         </div>
       )}
-      {yearToDateGross != null && (
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Доход с начала года:</span>
-          <span>{formatCurrency(yearToDateGross)}</span>
-        </div>
-      )}
+      <div className="flex justify-between font-medium">
+        <span>На руки:</span>
+        <span className="text-green-600"><Money amount={net} /></span>
+      </div>
     </>
   );
 }
@@ -199,6 +209,34 @@ function ItemPopover({
 }) {
   const popoverRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: -9999, left: -9999 });
+  const { setFact } = useFactsProvider();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Контекст редактируемой выплаты для обратного расчёта gross от net
+  const editingContext = useMemo(() => {
+    if (!editingId) return null;
+    const payment = payments.find((p) => p.id === editingId);
+    if (!payment) return null;
+    const netVal = parseFloat(editValue.replace(/[^0-9.,]/g, '').replace(',', '.'));
+    const validNet = !isNaN(netVal) && netVal > 0;
+    const priorYtdGross = payment.yearToDateGross - payment.gross;
+    const year = payment.date.getFullYear();
+    return {
+      payment,
+      validNet,
+      roundedNet: Math.round(netVal),
+      priorYtdGross: Math.round(priorYtdGross),
+      year,
+    };
+  }, [editingId, payments, editValue]);
+
+  // Превью gross при вводе net
+  const editPreviewGross = useMemo(() => {
+    if (!editingContext || !editingContext.validNet) return null;
+    return grossFromNet(editingContext.roundedNet, editingContext.priorYtdGross, editingContext.year);
+  }, [editingContext]);
 
   useLayoutEffect(() => {
     function updatePosition() {
@@ -249,6 +287,49 @@ function ItemPopover({
     };
   }, [anchorRef, payments.length]);
 
+  // Фокус на инпут при открытии редактирования
+  useLayoutEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingId]);
+
+  const startEdit = useCallback((payment: Payment) => {
+    setEditingId(payment.id);
+    // При редактировании показываем текущую сумму на руки (net с учётом fact)
+    setEditValue(payment.fact != null ? String(Math.round(payment.net)) : '');
+  }, []);
+
+  const confirmFact = useCallback(() => {
+    if (!editingContext || !editingContext.validNet) {
+      setEditingId(null);
+      setEditValue('');
+      return;
+    }
+    const grossVal = grossFromNet(
+      editingContext.roundedNet,
+      editingContext.priorYtdGross,
+      editingContext.year
+    );
+    setFact(editingContext.payment.id, grossVal);
+    setEditingId(null);
+    setEditValue('');
+  }, [editingId, editingContext, setFact]);
+
+  const confirmWithPlan = useCallback((payment: Payment) => {
+    setFact(payment.id, payment.gross);
+  }, [setFact]);
+
+  const cancelEdit = useCallback(() => {
+    setEditingId(null);
+    setEditValue('');
+  }, []);
+
+  const removeFact = useCallback((paymentId: string) => {
+    setFact(paymentId, undefined);
+  }, [setFact]);
+
   const sortedPayments = [...payments].sort((a, b) => (PAYMENT_PRIORITY[b.type] ?? 0) - (PAYMENT_PRIORITY[a.type] ?? 0));
 
   const firstPayment = sortedPayments[0];
@@ -266,28 +347,66 @@ function ItemPopover({
         <p className="font-semibold">
           {firstPayment ? format(firstPayment.date, 'd MMMM yyyy', { locale: ru }) : ''}
         </p>
-        {sortedPayments.map((item, idx) => (
-          <div key={idx}>
-            {idx > 0 && <div className="border-t my-2" />}
-            <PaymentDetails
-              label={getPaymentLabel(item.type)}
-              grossLabel="До НДФЛ"
-              salaryAmount={item.salaryAmount}
-              isBonus={item.type === 'bonus'}
-              gross={item.gross}
-              ndfls={item.ndfls}
-              ndfl={item.ndfl}
-            />
-          </div>
-        ))}
+        {sortedPayments.map((item, idx) => {
+          const isEditing = editingId === item.id;
+          return (
+            <div key={idx}>
+              {idx > 0 && <div className="border-t my-2" />}
+              <PaymentDetails
+                label={getPaymentLabel(item.type)}
+                salaryAmount={item.salaryAmount}
+                isBonus={item.type === 'bonus'}
+                gross={item.gross}
+                fact={item.fact}
+                ndfls={item.ndfls}
+                ndfl={item.ndfl}
+                net={item.net}
+              />
+              {isEditing ? (
+                <div className="mt-2 space-y-1.5">
+                  <Input
+                    ref={inputRef}
+                    type="text"
+                    inputMode="decimal"
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') confirmFact();
+                      if (e.key === 'Escape') cancelEdit();
+                    }}
+                    placeholder="Сумма на руки"
+                  />
+                  {editPreviewGross != null && (
+                    <p className="text-xs text-muted-foreground">До НДФЛ: <Money amount={editPreviewGross} /></p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={cancelEdit} className="flex-1">Отмена</Button>
+                    <Button size="sm" onClick={confirmFact} className="flex-1">Подтвердить</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-1.5 space-y-1">
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => startEdit(item)} className="flex-1">Изменить</Button>
+                    {item.fact != null ? (
+                      <Button size="sm" variant="outline" onClick={() => removeFact(item.id)} className="flex-1">Отменить факт</Button>
+                    ) : (
+                      <Button size="sm" onClick={() => confirmWithPlan(item)} className="flex-1">Подтвердить</Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
         <div className="border-t pt-2 space-y-1">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Доход с начала года:</span>
-            <span>{formatCurrency(maxYearToDateGross)}</span>
+            <span><Money amount={maxYearToDateGross} /></span>
           </div>
           <div className="flex justify-between border-t pt-2 mt-1">
             <span className="font-semibold">Итого на руки:</span>
-            <span className="font-bold text-green-600">{formatCurrency(totalNet)}</span>
+            <span className="font-bold text-green-600"><Money amount={totalNet} /></span>
           </div>
         </div>
       </div>
@@ -410,12 +529,12 @@ function MonthGrid({ year, month, monthName, combinedMap, vacationDays, calendar
             ? formatCurrency(dayPayments!.reduce((sum, p) => sum + p.net, 0))
             : isVacationDay ? 'Отпуск' : '';
 
-          return (
+          const cellContent = (
             <div
               key={idx}
               role={hasItem ? 'button' : undefined}
               tabIndex={hasItem ? 0 : undefined}
-              className={cn('relative', cellClass, tooltip && 'group', stripeStyle && 'calendar-stripe-cell')}
+              className={cn(cellClass, stripeStyle && 'calendar-stripe-cell')}
               style={{ fontSize: 'var(--cal-text)', ...cellVacStyle, ...cellPayStyle, ...(stripeStyle ?? {}) }}
               ref={(el) => {
                 if (!hasItem || !el) {
@@ -437,13 +556,18 @@ function MonthGrid({ year, month, monthName, combinedMap, vacationDays, calendar
               ) : (
                 day.getDate()
               )}
-
-              {tooltip && (
-                <span className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-card-secondary text-card-foreground border popover-shadow whitespace-pre-line opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-[60]">
-                  {tooltip}
-                </span>
-              )}
             </div>
+          );
+
+          return tooltip ? (
+            <Tooltip key={idx}>
+              <TooltipTrigger asChild>{cellContent}</TooltipTrigger>
+              <TooltipContent sideOffset={4} className="text-sm font-bold bg-card-secondary text-card-foreground border popover-shadow px-2 py-0.5 whitespace-pre-line">
+                {tooltip}
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            cellContent
           );
         })}
       </div>

@@ -11,10 +11,11 @@ export interface Payment {
   originalDate?: Date; // исходная дата до смещения (нет у премий)
   type: 'advance' | 'salary' | 'vacation' | 'bonus';
   salaryAmount: number; // оклад на момент выплаты (0 для отпускных и «своя сумма» премии)
-  gross: number; // сумма до НДФЛ
+  gross: number; // плановая сумма до НДФЛ
+  fact?: number; // фактическая gross-сумма (если подтверждена)
   ndfls: TaxBracketBreakdown[]; // разбивка НДФЛ по ставкам [{ставка, размер}, ...]
   ndfl: number; // итоговый НДФЛ = сумма всех элементов ndfls
-  net: number; // на руки
+  net: number; // на руки (рассчитан от fact если есть, иначе от gross)
   yearToDateGross: number; // накопленный gross с начала года после этой выплаты
   month?: number; // месяц выплаты (1-12, нет у премий)
 }

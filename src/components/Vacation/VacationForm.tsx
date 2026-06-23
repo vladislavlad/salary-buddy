@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { addDays, getMonth, getYear } from 'date-fns';
 import { X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -19,6 +20,17 @@ export function VacationForm({
   const [endDate, setEndDate] = useState(initial?.endDate ?? new Date());
   const [type, setType] = useState<VacationType>(initial?.type ?? 'paid');
 
+  // При смене даты начала: если месяц окончания отличается более чем на 1 — сбрасываем на +7 дней
+  const handleStartDateChange = useCallback((newStart: Date) => {
+    setStartDate(newStart);
+    const monthDiff = Math.abs(
+      (getYear(endDate) - getYear(newStart)) * 12 + (getMonth(endDate) - getMonth(newStart))
+    );
+    if (monthDiff > 1) {
+      setEndDate(addDays(newStart, 6));
+    }
+  }, [endDate]);
+
   const canSave = startDate !== null && endDate !== null && endDate >= startDate;
   const isEdit = !!initial;
 
@@ -33,7 +45,7 @@ export function VacationForm({
       <div className="space-y-2">
         <div className="space-y-2">
           <Label>Дата начала</Label>
-          <DatePicker value={startDate} onChange={setStartDate} />
+          <DatePicker value={startDate} onChange={handleStartDateChange} />
         </div>
         <div className="space-y-2">
           <Label>Дата окончания</Label>

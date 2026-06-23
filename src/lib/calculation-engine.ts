@@ -1,8 +1,37 @@
 import { getDaysInMonth, eachDayOfInterval } from 'date-fns';
 import type { SalarySettings, Bonus, Payment, YearCalculation, CalendarData, Vacation, VacationSettings, SalaryChange } from '@/types';
 import { calculateNdflForPayment } from './ndfl';
-import { findPreviousWorkday, countWorkdays, isDayOff } from '@/services/calendar';
+import { findPreviousWorkday, countWorkdays, isDayOff, countWorkdaysBack } from '@/services/calendar';
 import { dateToKey } from './utils';
+
+/**
+ * Обратный расчёт: по сумме «на руки» и накопленному доходу до выплаты
+ * находит сумму до НДФЛ. Использует бинарный поиск с верификацией через calculateNdflForPayment.
+ */
+export function grossFromNet(net: number, priorYtdGross: number, year: number): number {
+  // Считаем уже уплаченный налог на момент priorYtdGross
+  const priorTaxResult = calculateNdflForPayment(priorYtdGross, 0, 0, year);
+
+  let lo = net;
+  let hi = Math.ceil(net / 0.78);
+
+  for (let i = 0; i < 100; i++) {
+    const mid = Math.round((lo + hi) / 2);
+    const check = calculateNdflForPayment(mid, priorYtdGross, priorTaxResult.newTotalTax, year);
+    const midNetRounded = Math.round(mid - check.ndfl);
+    if (midNetRounded === net) return mid;
+    if (midNetRounded < net) lo = mid + 1;
+    else hi = mid - 1;
+  }
+
+  // Линейный поиск вокруг лучшего приближения
+  for (let g = Math.max(net, lo - 5); g <= hi + 5; g++) {
+    const c = calculateNdflForPayment(g, priorYtdGross, priorTaxResult.newTotalTax, year);
+    if (Math.round(g - c.ndfl) === net) return g;
+  }
+
+  return Math.round(net / 0.87);
+}
 
 interface ScheduledEvent {
   id: string; // sal:{year}:{month}:{a|b} или vac:{year}:{seq}
@@ -82,7 +111,8 @@ export function calculateYear(
   bonuses: Bonus[],
   vacations: Vacation[],
   vacationSettings: VacationSettings,
-  calendarData: CalendarData | null
+  calendarData: CalendarData | null,
+  facts?: Record<string, number>
 ): YearCalculation {
   const sortedChanges = sortSalaryChanges(settings.salaryChanges);
 
@@ -145,23 +175,15 @@ export function calculateYear(
     if (advanceDate.getFullYear() !== year) continue;
     const adjustedAdvance = findPreviousWorkday(advanceDate, calendarData);
 
-    // В декабре — полная выпплата в день аванса
+    // В декабре — аванс как обычно, зарплата за 1 рабочий день до последнего рабочего дня месяца
+    let salaryDate: Date;
     if (month === 11) {
-      events.push({
-        id: `sal:${year}:${String(month + 1).padStart(2, '0')}:b`,
-        date: adjustedAdvance,
-        originalDate: advanceDate,
-        type: 'salary',
-        gross: monthSalary,
-        salaryAmount: monthSalary,
-        month: month + 1,
-      });
-      continue;
+      const lastWorkday = findPreviousWorkday(monthEnd, calendarData);
+      salaryDate = countWorkdaysBack(1, lastWorkday, calendarData);
+    } else {
+      salaryDate = new Date(year, month + 1, settings.salaryPaymentDay);
+      if (salaryDate.getFullYear() !== year) continue;
     }
-
-    // Зарплата за месяц M платится на salaryPaymentDay месяца M+1
-    const salaryDate = new Date(year, month + 1, settings.salaryPaymentDay);
-    if (salaryDate.getFullYear() !== year) continue;
     const adjustedSalary = findPreviousWorkday(salaryDate, calendarData);
 
     // Находим отпуска, пересекающие текущий месяц
@@ -231,13 +253,13 @@ export function calculateYear(
       }
     } else {
       const actualWorkdaysFirstHalf = workdaysFirstHalf - vacationWorkdaysFirstHalf;
+      const workdaysSecondHalf = totalWorkdaysInMonth - workdaysFirstHalf;
+      const actualWorkdaysSecondHalf = workdaysSecondHalf - vacationWorkdaysSecondHalf;
 
       if (totalWorkdaysInMonth > 0) {
         advanceGross = monthSalary * (actualWorkdaysFirstHalf / totalWorkdaysInMonth);
-        salaryGross = monthSalary - advanceGross;
-
-        const vacationDeductionSecondHalf = vacationWorkdaysSecondHalf * (monthSalary / totalWorkdaysInMonth);
-        salaryGross -= vacationDeductionSecondHalf;
+        salaryGross = monthSalary * (actualWorkdaysSecondHalf / totalWorkdaysInMonth);
+        if (advanceGross < 0) advanceGross = 0;
         if (salaryGross < 0) salaryGross = 0;
       } else {
         advanceGross = monthSalary / 2;
@@ -323,7 +345,11 @@ export function calculateYear(
   for (const event of allEvents) {
     const isBonus = 'isBonus' in event && event.isBonus;
 
-    const result = calculateNdflForPayment(event.gross, accumulatedIncome, totalTaxPaid, year);
+    // Если есть факт — используем его для расчёта НДФЛ и накопленного дохода
+    const factGross = facts?.[event.id];
+    const effectiveGross = factGross ?? event.gross;
+
+    const result = calculateNdflForPayment(effectiveGross, accumulatedIncome, totalTaxPaid, year);
     const yearToDateGross = result.newAccumulatedIncome;
 
     if (!isBonus) {
@@ -334,9 +360,10 @@ export function calculateYear(
         type: event.type,
         salaryAmount: event.salaryAmount,
         gross: event.gross,
+        ...(factGross !== undefined ? { fact: factGross } : {}),
         ndfls: result.breakdown,
         ndfl: result.ndfl,
-        net: event.gross - result.ndfl,
+        net: effectiveGross - result.ndfl,
         yearToDateGross,
         month: event.month,
       });
@@ -347,9 +374,10 @@ export function calculateYear(
         type: 'bonus',
         salaryAmount: event.salaryAmount,
         gross: event.gross,
+        ...(factGross !== undefined ? { fact: factGross } : {}),
         ndfls: result.breakdown,
         ndfl: result.ndfl,
-        net: event.gross - result.ndfl,
+        net: effectiveGross - result.ndfl,
         yearToDateGross,
       });
     }

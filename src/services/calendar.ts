@@ -70,6 +70,21 @@ export function findPreviousWorkday(date: Date, calendarData: CalendarData): Dat
 }
 
 /**
+ * Отсчитывает N рабочих дней назад от указанной даты.
+ */
+export function countWorkdaysBack(n: number, fromDate: Date, calendarData: CalendarData): Date {
+  const result = new Date(fromDate);
+  let counted = 0;
+  while (counted < n) {
+    result.setDate(result.getDate() - 1);
+    if (!isDayOff(result, calendarData)) {
+      counted++;
+    }
+  }
+  return result;
+}
+
+/**
  * Подсчитывает количество рабочих дней в диапазоне дат (включительно).
  */
 export function countWorkdays(start: Date, end: Date, calendarData: CalendarData): number {

@@ -48,7 +48,7 @@ export function NumberField({
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
-      <div className="flex h-9 rounded-md border border-input shadow-sm">
+      <div className="flex h-8 rounded-md border border-input shadow-sm">
         <input
           id={id}
           type="number"
@@ -66,7 +66,7 @@ export function NumberField({
               setLocalValue(String(value));
             }
           }}
-          className="flex h-full w-full rounded-md border-none bg-transparent px-3 py-1 text-base shadow-none focus-visible:outline-none focus-visible:ring-0 md:text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="flex h-full w-full rounded-md border-none bg-transparent px-3 py-1 text-sm shadow-none focus-visible:outline-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
         <div className="flex flex-col border-l">
           <button
