@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useLayoutEffect, useRef, useState } from 'react';
 import { format, getDaysInMonth, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { Check } from 'lucide-react';
 import type { Payment, CalendarData, TaxBracketBreakdown } from '@/types';
 import { useFactsProvider } from '@/hooks/useFactsProvider';
 import { isDayOff } from '@/services/calendar';
@@ -476,6 +477,7 @@ function MonthGrid({ year, month, monthName, combinedMap, vacationDays, calendar
           const dayPayments = combinedMap.get(dateKey);
           const hasItem = !!(dayPayments && dayPayments.length > 0);
           const paymentCount = dayPayments?.length ?? 0;
+          const allConfirmed = hasItem && dayPayments!.every(p => p.fact != null);
           const isTodayFlag = isSameDay(day, today);
           const isVacationDay = vacationDateSet.has(dateKey);
 
@@ -534,7 +536,7 @@ function MonthGrid({ year, month, monthName, combinedMap, vacationDays, calendar
               key={idx}
               role={hasItem ? 'button' : undefined}
               tabIndex={hasItem ? 0 : undefined}
-              className={cn(cellClass, stripeStyle && 'calendar-stripe-cell')}
+              className={cn('relative', cellClass, stripeStyle && 'calendar-stripe-cell')}
               style={{ fontSize: 'var(--cal-text)', ...cellVacStyle, ...cellPayStyle, ...(stripeStyle ?? {}) }}
               ref={(el) => {
                 if (!hasItem || !el) {
@@ -555,6 +557,9 @@ function MonthGrid({ year, month, monthName, combinedMap, vacationDays, calendar
                 <span className="underline decoration-2">{day.getDate()}</span>
               ) : (
                 day.getDate()
+              )}
+              {allConfirmed && isCurrentMonth && (
+                <Check strokeWidth={3} className="absolute top-0.5 right-0.5 h-3 w-3 text-green-600 dark:text-green-400" />
               )}
             </div>
           );

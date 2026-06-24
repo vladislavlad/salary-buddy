@@ -1,6 +1,9 @@
 import type { CalendarData } from '@/types';
 
-const BASE_URL = 'https://isdayoff.ru/api/getdata';
+const ISDAYOFF_BASE_URL = 'https://isdayoff.ru/api/getdata';
+
+/** Разделяет официальные праздники (код 8) и выходные (код 1) в ответе API. */
+const SEPARATE_HOLIDAY_AND_WEEKEND = 1;
 
 /**
  * Форматирует дату в формат YYYYMMDD для API.
@@ -17,7 +20,7 @@ function formatDate(date: Date): string {
  * Возвращает Map<YYYYMMDD, code>, где code: 0=рабочий, 1=нерабочий, 2=сокращённый, 8=праздник.
  */
 export async function fetchCalendar(year: number): Promise<CalendarData> {
-  const url = `${BASE_URL}?year=${year}&cc=ru`;
+  const url = `${ISDAYOFF_BASE_URL}?year=${year}&cc=ru&holiday=${SEPARATE_HOLIDAY_AND_WEEKEND}`;
   const response = await fetch(url);
 
   if (!response.ok) {
@@ -44,15 +47,10 @@ export async function fetchCalendar(year: number): Promise<CalendarData> {
 }
 
 /**
- * Проверяет, является ли дата выходным или праздником.
- * Суббота/воскресенье считаются выходными автоматически.
+ * Проверяет, является ли дата выходным или праздником (по данным API).
  */
 export function isDayOff(date: Date, calendarData: CalendarData): boolean {
-  const dayOfWeek = date.getDay();
-  if (dayOfWeek === 0 || dayOfWeek === 6) return true;
-
   const code = calendarData.get(formatDate(date));
-  // 1 — нерабочий день, 8 — праздничный день
   return code === 1 || code === 8;
 }
 
@@ -99,4 +97,35 @@ export function countWorkdays(start: Date, end: Date, calendarData: CalendarData
   }
 
   return count;
+}
+
+/**
+ * Проверяет, является ли дата официальным нерабочим праздничным днём по ст. 112 ТК РФ.
+ * С holiday=1 API возвращает код 8 для статутных праздников (независимо от дня недели).
+ */
+export function isOfficialHoliday(date: Date, calendarData: CalendarData): boolean {
+  const code = calendarData.get(formatDate(date));
+  return code === 8;
+}
+
+/**
+ * Вычисляет массив дат отпуска: N календарных дней от startDate, исключая официальные праздники.
+ * По ТК РФ отпуск автоматически продлевается на количество праздников внутри него.
+ */
+export function computeVacationDates(
+  startDate: Date,
+  calendarDays: number,
+  calendarData: CalendarData
+): Date[] {
+  const result: Date[] = [];
+  const current = new Date(startDate);
+
+  while (result.length < calendarDays) {
+    if (!isOfficialHoliday(current, calendarData)) {
+      result.push(new Date(current));
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  return result;
 }

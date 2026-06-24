@@ -1,37 +1,44 @@
-import { useCallback, useState } from 'react';
-import { addDays, getMonth, getYear } from 'date-fns';
-import { X, Check } from 'lucide-react';
+import { useState } from 'react';
+import { X, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/datepicker';
 import type { VacationType } from '@/types';
+import type { CalendarData } from '@/types';
+import { isOfficialHoliday, computeVacationDates } from '@/services/calendar';
 
 export function VacationForm({
   initial,
+  calendarData,
   onSave,
   onCancel,
 }: {
-  initial?: { id: string; startDate: Date; endDate: Date; type: VacationType };
-  onSave: (data: { id?: string; startDate: Date; endDate: Date; type: VacationType }) => void;
+  initial?: { id: string; startDate: Date; calendarDays: number; dates: Date[]; type: VacationType };
+  calendarData: CalendarData | null;
+  onSave: (data: { id?: string; startDate: Date; calendarDays: number; dates: Date[]; type: VacationType }) => void;
   onCancel: () => void;
 }) {
   const [startDate, setStartDate] = useState(initial?.startDate ?? new Date());
-  const [endDate, setEndDate] = useState(initial?.endDate ?? new Date());
+  const [daysInput, setDaysInput] = useState<string>(String(initial?.calendarDays ?? 14));
   const [type, setType] = useState<VacationType>(initial?.type ?? 'paid');
 
-  // При смене даты начала: если месяц окончания отличается более чем на 1 — сбрасываем на +7 дней
-  const handleStartDateChange = useCallback((newStart: Date) => {
-    setStartDate(newStart);
-    const monthDiff = Math.abs(
-      (getYear(endDate) - getYear(newStart)) * 12 + (getMonth(endDate) - getMonth(newStart))
-    );
-    if (monthDiff > 1) {
-      setEndDate(addDays(newStart, 6));
+  // Валидация на blur: пустое → 1, не число → 1.
+  const handleDaysBlur = () => {
+    const parsed = parseInt(daysInput, 10);
+    if (isNaN(parsed) || parsed < 1) {
+      setDaysInput('1');
+    } else {
+      setDaysInput(String(Math.min(60, parsed)));
     }
-  }, [endDate]);
+  };
 
-  const canSave = startDate !== null && endDate !== null && endDate >= startDate;
+  const calendarDays = Math.max(1, parseInt(daysInput, 10) || 1);
+  const daysError = !isNaN(parseInt(daysInput, 10)) ? false : daysInput.length > 0;
+  const isStartHoliday = calendarData && isOfficialHoliday(startDate, calendarData);
+
+  const canSave = !isStartHoliday && !daysError;
   const isEdit = !!initial;
 
   return (
@@ -45,11 +52,30 @@ export function VacationForm({
       <div className="space-y-2">
         <div className="space-y-2">
           <Label>Дата начала</Label>
-          <DatePicker value={startDate} onChange={handleStartDateChange} />
+          <DatePicker value={startDate} onChange={setStartDate} />
+          {isStartHoliday && (
+            <p className="text-xs text-destructive flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              Нельзя начать отпуск с праздничного дня
+            </p>
+          )}
         </div>
         <div className="space-y-2">
-          <Label>Дата окончания</Label>
-          <DatePicker value={endDate} onChange={setEndDate} />
+          <Label>Количество календарных дней</Label>
+          <Input
+            type="number"
+            min={1}
+            max={60}
+            value={daysInput}
+            onChange={(e) => setDaysInput(e.target.value)}
+            onBlur={handleDaysBlur}
+          />
+          {daysError && (
+            <p className="text-xs text-destructive flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              Введите число от 1 до 60
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <Label>Тип отпуска</Label>
@@ -66,8 +92,9 @@ export function VacationForm({
       </div>
       <div className="pt-2">
         <Button size="sm" className="w-full" disabled={!canSave} onClick={() => {
-          if (!startDate || !endDate) return;
-          onSave({ id: initial?.id, startDate, endDate, type });
+          if (!calendarData) return;
+          const dates = computeVacationDates(startDate, calendarDays, calendarData);
+          onSave({ id: initial?.id, startDate, calendarDays, dates, type });
         }}>
           <Check className="w-3.5 h-3.5 mr-1" />
           {isEdit ? 'Сохранить' : 'Добавить'}

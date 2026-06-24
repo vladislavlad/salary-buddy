@@ -1,8 +1,12 @@
-import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronUp, Plus, Settings2, Calendar as CalendarIcon, Umbrella } from 'lucide-react';
+import { useState, useMemo, useRef } from 'react';
+import { ChevronDown, ChevronUp, Plus, Settings2, Calendar as CalendarIcon, Umbrella, Download, Upload } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Toaster } from '@/components/ui/toaster';
+import { useToast } from '@/hooks/use-toast';
+import { useAppToast, queuePendingToast } from '@/hooks/useAppToast';
+import { collectExportData, importFromFile } from '@/services/exportImport';
 import { SalaryManager } from '@/components/Salary/SalaryManager';
 import { YearCalendar } from '@/components/Calendar/YearCalendar';
 import { BonusManager } from '@/components/Bonus/BonusManager';
@@ -25,7 +29,12 @@ function AppContent() {
   const [showSettings, setShowSettings] = useState(true);
   const [showBonuses, setShowBonuses] = useState(false);
   const [showVacations, setShowVacations] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [displayYear, setDisplayYear] = useState(CURRENT_YEAR);
+
+  const importRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  useAppToast();
 
   const { settings, updateSettings } = useSalaryProvider();
 
@@ -41,20 +50,54 @@ function AppContent() {
     if (!calculation) return 0;
     return calculation.payments.reduce((s, p) => s + p.ndfl, 0);
   }, [calculation]);
-  const totalNet = useMemo(() => {
-    if (!calculation) return 0;
-    return calculation.payments.reduce((s, p) => s + p.net, 0);
-  }, [calculation]);
+  const totalNet = totalGross - totalNdfl;
 
   const canGoPrev = displayYear > MIN_DISPLAY_YEAR;
   const canGoNext = displayYear < MAX_DISPLAY_YEAR;
+
+  // Экспорт данных в JSON-файл
+  const handleExport = () => {
+    try {
+      const data = collectExportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      a.href = url;
+      a.download = `salary-buddy-${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ description: 'Данные сохранены' });
+    } catch {
+      toast({ variant: 'destructive', description: 'Ошибка при экспорте данных' });
+    }
+  };
+
+  // Импорт данных из JSON-файла
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      await importFromFile(file);
+      queuePendingToast({ variant: 'success', description: 'Данные загружены' });
+      window.location.reload();
+    } catch {
+      toast({ variant: 'destructive', description: 'Ошибка при импорте данных. Убедитесь, что файл содержит корректные данные Salary Buddy.' });
+    } finally {
+      e.target.value = '';
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background lg:h-screen lg:overflow-hidden">
       <header className="border-b bg-card-secondary shrink-0">
         <div className="px-6 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Salary Buddy</h1>
+            <h1 className="text-2xl font-bold">Зарплатный помощник</h1>
             <p className="text-muted-foreground text-sm">
               Расчёт зарплаты с учётом НДФЛ и календаря РФ
             </p>
@@ -123,6 +166,42 @@ function AppContent() {
               {showVacations && (
                 <CardContent className="px-6 pb-4">
                   <VacationManager />
+                </CardContent>
+              )}
+            </Card>
+
+            {/* Выгрузка данных */}
+            <Card>
+              <button
+                className="w-full flex items-center justify-between p-6 text-left"
+                onClick={() => setShowExport(!showExport)}
+              >
+                <div className="flex items-center gap-2">
+                  <Download className="w-5 h-5" />
+                  <h2 className="font-semibold leading-none tracking-tight">Выгрузка данных</h2>
+                </div>
+                {showExport ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </button>
+
+              {showExport && (
+                <CardContent className="px-6 pb-4">
+                  <div className="flex flex-col gap-2">
+                    <Button onClick={handleExport}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Сохранить
+                    </Button>
+                    <input
+                      ref={importRef}
+                      type="file"
+                      accept=".json"
+                      onChange={handleImport}
+                      className="hidden"
+                    />
+                    <Button variant="outline" onClick={() => importRef.current?.click()}>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Загрузить
+                    </Button>
+                  </div>
                 </CardContent>
               )}
             </Card>
@@ -235,6 +314,7 @@ function AppContent() {
           )}
         </div>
       </main>
+      <Toaster />
     </div>
   );
 }

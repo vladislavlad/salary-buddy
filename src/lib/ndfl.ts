@@ -11,7 +11,7 @@ function computeBracketTaxes(accumulatedIncome: number, brackets: [number, numbe
   for (const [threshold, rate] of brackets) {
     if (accumulatedIncome <= previousThreshold) break;
     const taxableInBracket = Math.min(accumulatedIncome, threshold) - previousThreshold;
-    result.push({ rate: rate * 100, amount: taxableInBracket * rate });
+    result.push({ rate: rate * 100, amount: Math.round(taxableInBracket * rate) });
     previousThreshold = threshold;
   }
   return result;
@@ -48,7 +48,6 @@ function getNdflConfig(year: number): NdflYearConfig {
 export function calculateNdflForPayment(
   paymentGross: number,
   previousAccumulatedIncome: number,
-  previousTaxPaid: number,
   year: number
 ): { ndfl: number; newAccumulatedIncome: number; newTotalTax: number; breakdown: TaxBracketBreakdown[] } {
   const config = getNdflConfig(year);
@@ -76,8 +75,8 @@ export function calculateNdflForPayment(
     }
   }
 
-  // НДФЛ именно с этой выплаты = общий НДФЛ минус уже уплаченный
-  const ndflForPayment = Math.max(0, totalNewTax - previousTaxPaid);
+  // НДФЛ именно с этой выплаты = сумма по всем ставкам из breakdown
+  const ndflForPayment = breakdown.reduce((sum, b) => sum + b.amount, 0);
 
   return {
     ndfl: ndflForPayment,

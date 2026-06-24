@@ -1,11 +1,12 @@
-import type { SalarySettings, Bonus, Vacation, VacationSettings } from '@/types';
-import { SalarySettingsSchema, BonusSchema, VacationSchema, VacationSettingsSchema } from '@/types';
+import type { SalarySettings, Bonus, Vacation } from '@/types';
+import { SalarySettingsSchema, BonusSchema, VacationSchema } from '@/types';
 
 const SETTINGS_KEY = 'salary-buddy-settings';
 const BONUSES_KEY = 'salary-buddy-bonuses';
 const VACATIONS_KEY = 'salary-buddy-vacations';
-const VACATION_SETTINGS_KEY = 'salary-buddy-vacation-settings';
 const FACTS_KEY = 'salary-buddy-facts';
+
+export const STORAGE_KEYS = [SETTINGS_KEY, BONUSES_KEY, VACATIONS_KEY, FACTS_KEY];
 
 /**
  * Сохраняет настройки зарплаты в localStorage.
@@ -91,36 +92,9 @@ export function loadVacations(): Vacation[] {
     const raw = localStorage.getItem(VACATIONS_KEY);
     if (!raw) return [];
 
-    const parsed = JSON.parse(raw);
-    return VacationSchema.array().parse(parsed);
+    return VacationSchema.array().parse(JSON.parse(raw));
   } catch {
     return [];
-  }
-}
-
-/**
- * Сохраняет настройки расчёта отпускных в localStorage.
- */
-export function saveVacationSettings(settings: VacationSettings): void {
-  try {
-    localStorage.setItem(VACATION_SETTINGS_KEY, JSON.stringify(settings));
-  } catch {
-    console.warn('Не удалось сохранить настройки отпусков');
-  }
-}
-
-/**
- * Загружает настройки расчёта отпускных из localStorage.
- */
-export function loadVacationSettings(): VacationSettings | null {
-  try {
-    const raw = localStorage.getItem(VACATION_SETTINGS_KEY);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw);
-    return VacationSettingsSchema.parse(parsed);
-  } catch {
-    return null;
   }
 }
 
@@ -149,4 +123,11 @@ export function loadFacts(): Record<string, number> | null {
   } catch {
     return {};
   }
+}
+
+/**
+ * Очищает все ключи Salary Buddy из localStorage.
+ */
+export function clearAll(): void {
+  STORAGE_KEYS.forEach(k => localStorage.removeItem(k));
 }

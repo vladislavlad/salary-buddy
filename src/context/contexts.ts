@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { Bonus, Vacation, VacationSettings, SalarySettings, YearCalculation, CalendarData } from '@/types';
+import type { Bonus, Vacation, SalarySettings, YearCalculation, CalendarData } from '@/types';
 
 interface BonusesContextValue {
   bonuses: Bonus[];
@@ -13,8 +13,6 @@ interface VacationsContextValue {
   addVacation: (vacation: Omit<Vacation, 'id'>) => void;
   updateVacation: (id: string, data: Partial<Omit<Vacation, 'id'>>) => void;
   removeVacation: (id: string) => void;
-  vacationSettings: VacationSettings;
-  updateVacationSettings: (partial: Partial<VacationSettings>) => void;
 }
 
 interface SalaryContextValue {

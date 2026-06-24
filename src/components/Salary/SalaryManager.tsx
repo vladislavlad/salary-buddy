@@ -48,17 +48,17 @@ export function SalaryManager({ settings, onChange }: SalaryManagerProps) {
       <div className="grid grid-cols-2 gap-4">
         <NumberField
           label="Число аванса"
-          value={settings.salaryPaymentDay}
-          min={1}
-          max={28}
-          onChange={(val) => onChange({ salaryPaymentDay: val })}
-        />
-        <NumberField
-          label="Число зарплаты"
           value={settings.advancePaymentDay}
           min={1}
           max={28}
           onChange={(val) => onChange({ advancePaymentDay: val })}
+        />
+        <NumberField
+          label="Число зарплаты"
+          value={settings.salaryPaymentDay}
+          min={1}
+          max={28}
+          onChange={(val) => onChange({ salaryPaymentDay: val })}
         />
       </div>
 

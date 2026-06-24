@@ -21,7 +21,7 @@ function range(from: number, to: number): number[] {
 export function PaymentsProvider({ children }: { children: React.ReactNode }) {
   const { settings } = useSalaryProvider();
   const { bonuses } = useBonusesProvider();
-  const { vacations, vacationSettings } = useVacationsProvider();
+  const { vacations } = useVacationsProvider();
   const { facts } = useFactsProvider();
 
   const displayYears = useMemo(() => range(MIN_DISPLAY_YEAR, MAX_DISPLAY_YEAR), []);
@@ -54,7 +54,8 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
     return { calendars: calMap, allLoaded: loaded };
   }, [calendarResults, displayYears]);
 
-  const calculations = useMemo(() => {
+  // Первый проход: считаем все годы без cross-year данных для отпускных.
+  const firstPass = useMemo(() => {
     const results = new Map<number, YearCalculation>();
     for (const year of displayYears) {
       const calendarData = calendars.get(year) ?? null;
@@ -63,15 +64,47 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
         settings,
         bonuses,
         vacations,
-        vacationSettings,
         calendarData,
         facts
       );
       results.set(year, result);
     }
+    return results;
+  }, [settings, bonuses, vacations, facts, displayYears, calendars]);
+
+  // Второй проход: пересчитываем с полными данными для корректных отпускных.
+  const calculations = useMemo(() => {
+    const results = new Map<number, YearCalculation>();
+
+    for (const year of displayYears) {
+      const calendarData = calendars.get(year) ?? null;
+      // Передаём накопленные результаты предыдущих лет + текущий из первого прохода.
+      const priorCalculations = new Map<number, YearCalculation>();
+      for (const y of displayYears) {
+        if (y > year) break;
+        const existing = results.get(y);
+        if (existing) {
+          priorCalculations.set(y, existing);
+        } else {
+          const fp = firstPass.get(y);
+          if (fp) priorCalculations.set(y, fp);
+        }
+      }
+
+      const result = calculateYear(
+        year,
+        settings,
+        bonuses,
+        vacations,
+        calendarData,
+        facts,
+        priorCalculations.size > 0 ? priorCalculations : undefined
+      );
+      results.set(year, result);
+    }
 
     return results;
-  }, [settings, bonuses, vacations, vacationSettings, facts, displayYears, calendars]);
+  }, [settings, bonuses, vacations, facts, displayYears, calendars, firstPass]);
 
   const value = useMemo(
     () => ({
