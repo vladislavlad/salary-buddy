@@ -31,7 +31,8 @@
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
-    --shadow-popover: 0 2px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05);
+    --shadow-popover:
+      0 2px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05);
 
     /* Payment cell colors — salary/advance */
     --pay-salary-bg: #dcfce7;
@@ -79,8 +80,10 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --shadow-card: 0 1px 3px rgba(255, 255, 255, 0.06), 0 1px 2px rgba(255, 255, 255, 0.03);
-    --shadow-popover: 0 2px 6px rgba(255, 255, 255, 0.04), 0 1px 3px rgba(255, 255, 255, 0.02);
+    --shadow-card:
+      0 1px 3px rgba(255, 255, 255, 0.06), 0 1px 2px rgba(255, 255, 255, 0.03);
+    --shadow-popover:
+      0 2px 6px rgba(255, 255, 255, 0.04), 0 1px 3px rgba(255, 255, 255, 0.02);
 
     /* Payment cell colors — salary/advance */
     --pay-salary-bg: rgba(4, 120, 57, 0.4);
@@ -147,6 +150,77 @@
 .sidebar-scroll {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--border)) transparent;
+}
+
+/* Плавное растворение контента у краёв скролла сайдбара (только на lg, где он скроллится) */
+@media (min-width: 1024px) {
+  .sidebar-scroll {
+    --fade-size: 1.5rem;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 var(--fade-size),
+      #000 calc(100% - var(--fade-size)),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 var(--fade-size),
+      #000 calc(100% - var(--fade-size)),
+      transparent 100%
+    );
+  }
+
+  /* Улучшение: fade появляется только с той стороны, куда есть прокрутка */
+  @supports (animation-timeline: scroll()) {
+    @property --fade-top {
+      syntax: "<length>";
+      inherits: false;
+      initial-value: 0px;
+    }
+    @property --fade-bottom {
+      syntax: "<length>";
+      inherits: false;
+      initial-value: 0px;
+    }
+
+    .sidebar-scroll {
+      -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0,
+        #000 var(--fade-top),
+        #000 calc(100% - var(--fade-bottom)),
+        transparent 100%
+      );
+      mask-image: linear-gradient(
+        to bottom,
+        transparent 0,
+        #000 var(--fade-top),
+        #000 calc(100% - var(--fade-bottom)),
+        transparent 100%
+      );
+      animation: sidebar-fade-edges linear both;
+      animation-timeline: scroll(self block);
+    }
+
+    @keyframes sidebar-fade-edges {
+      0% {
+        --fade-top: 0px;
+        --fade-bottom: 1.5rem;
+      }
+      6% {
+        --fade-top: 1.5rem;
+      }
+      94% {
+        --fade-bottom: 1.5rem;
+      }
+      100% {
+        --fade-top: 1.5rem;
+        --fade-bottom: 0px;
+      }
+    }
+  }
 }
 
 /* Stripe cells — multi-payment background with dark theme support */

@@ -1,96 +1,59 @@
-import { useState, useMemo, useRef } from 'react';
-import { ChevronDown, ChevronUp, Plus, Settings2, Calendar as CalendarIcon, Umbrella, Download, Upload } from 'lucide-react';
+import { useState } from "react";
+import {
+  Plus,
+  Settings2,
+  Calendar as CalendarIcon,
+  Umbrella,
+  Download,
+} from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Toaster } from '@/components/ui/toaster';
-import { useToast } from '@/hooks/use-toast';
-import { useAppToast, queuePendingToast } from '@/hooks/useAppToast';
-import { collectExportData, importFromFile } from '@/services/exportImport';
-import { SalaryManager } from '@/components/Salary/SalaryManager';
-import { YearCalendar } from '@/components/Calendar/YearCalendar';
-import { BonusManager } from '@/components/Bonus/BonusManager';
-import { VacationManager } from '@/components/Vacation/VacationManager';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { SalaryProvider } from '@/context/SalaryProvider';
-import { useSalaryProvider } from '@/hooks/useSalaryProvider';
-import { BonusesProvider } from '@/context/BonusesProvider';
-import { VacationsProvider } from '@/context/VacationsProvider';
-import { PaymentsProvider } from '@/context/PaymentsProvider';
-import { FactsProvider } from '@/context/FactsProvider';
-import { usePaymentsForYear, useCalendarForYear } from '@/hooks/usePaymentsHooks';
-import { Money } from '@/components/ui/money';
-import { MIN_DISPLAY_YEAR, MAX_DISPLAY_YEAR } from '@/lib/utils';
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { Card, CardContent, CardHeader } from "@/shared/ui/card";
+import { Toaster } from "@/shared/ui/toaster";
+import { CollapsibleSection } from "@/shared/ui/CollapsibleSection";
+import { useAppToast } from "@/shared/ui/useAppToast";
+import { ImportExportPanel } from "@/features/import-export/ui/ImportExportPanel";
+import { SalaryManager } from "@/features/salary/ui/SalaryManager";
+import { SurchargeManager } from "@/features/surcharge/ui/SurchargeManager";
+import { YearCalendar } from "@/features/calendar/ui/YearCalendar";
+import { YearNavigator } from "@/features/calendar/ui/YearNavigator";
+import { BonusManager } from "@/features/bonus/ui/BonusManager";
+import { VacationManager } from "@/features/vacation/ui/VacationManager";
+import { ThemeToggle } from "@/shared/ui/ThemeToggle";
+import { useSalaryProvider } from "@/features/salary/hooks/useSalaryProvider";
+import { useSalaryPaymentSettingsProvider } from "@/features/salary-payment-settings/hooks/useSalaryPaymentSettingsProvider";
+import { useVacationsProvider } from "@/features/vacation/hooks/useVacationsProvider";
+import {
+  usePaymentsForYear,
+  useCalendarForYear,
+} from "@/features/payments/hooks/usePaymentsHooks";
+import { useYearSummary } from "@/features/payments/hooks/useYearSummary";
+import { YearSummaryCards } from "@/features/payments/ui/YearSummaryCards";
+import { MIN_DISPLAY_YEAR, MAX_DISPLAY_YEAR } from "@/shared/lib/utils";
+import { AppProviders } from "@/app/AppProviders";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
 function AppContent() {
-  const [showSettings, setShowSettings] = useState(true);
-  const [showBonuses, setShowBonuses] = useState(false);
-  const [showVacations, setShowVacations] = useState(false);
-  const [showExport, setShowExport] = useState(false);
   const [displayYear, setDisplayYear] = useState(CURRENT_YEAR);
 
-  const importRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
   useAppToast();
 
-  const { settings, updateSettings } = useSalaryProvider();
+  const { salaries, setSalaries } = useSalaryProvider();
+  const { paymentSettings, updatePaymentSettings } =
+    useSalaryPaymentSettingsProvider();
+  const { vacations } = useVacationsProvider();
 
   const calendarData = useCalendarForYear(displayYear);
-  const calculation = usePaymentsForYear(displayYear);
+  const payments = usePaymentsForYear(displayYear);
 
-  // Итоги за год — суммируем из единого массива выплат
-  const totalGross = useMemo(() => {
-    if (!calculation) return 0;
-    return calculation.payments.reduce((s, p) => s + (p.fact ?? p.gross), 0);
-  }, [calculation]);
-  const totalNdfl = useMemo(() => {
-    if (!calculation) return 0;
-    return calculation.payments.reduce((s, p) => s + p.ndfl, 0);
-  }, [calculation]);
-  const totalNet = totalGross - totalNdfl;
+  const { vacationDays, totalGross, totalNdfl, totalNet } = useYearSummary(
+    payments,
+    vacations,
+    displayYear,
+  );
 
   const canGoPrev = displayYear > MIN_DISPLAY_YEAR;
   const canGoNext = displayYear < MAX_DISPLAY_YEAR;
-
-  // Экспорт данных в JSON-файл
-  const handleExport = () => {
-    try {
-      const data = collectExportData();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      a.href = url;
-      a.download = `salary-buddy-${dateStr}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast({ description: 'Данные сохранены' });
-    } catch {
-      toast({ variant: 'destructive', description: 'Ошибка при экспорте данных' });
-    }
-  };
-
-  // Импорт данных из JSON-файла
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      await importFromFile(file);
-      queuePendingToast({ variant: 'success', description: 'Данные загружены' });
-      window.location.reload();
-    } catch {
-      toast({ variant: 'destructive', description: 'Ошибка при импорте данных. Убедитесь, что файл содержит корректные данные Salary Buddy.' });
-    } finally {
-      e.target.value = '';
-    }
-  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background lg:h-screen lg:overflow-hidden">
@@ -108,103 +71,31 @@ function AppContent() {
 
       <main className="flex flex-col lg:flex-row gap-6 px-4 py-6 lg:px-6 lg:py-8 lg:gap-3 flex-1 overflow-hidden">
         {/* Левая колонка — настройки */}
-        <aside className="w-full lg:w-[380px] lg:shrink-0 space-y-6 lg:h-full lg:min-h-0 lg:overflow-y-auto sidebar-scroll pr-2 lg:pr-4">
+        <aside className="w-full lg:w-[380px] lg:shrink-0 space-y-6 lg:h-full lg:min-h-0 lg:overflow-y-auto sidebar-scroll pr-2 lg:pr-4 lg:pb-4 lg:pl-2 lg:-ml-2">
+          <CollapsibleSection title="Настройки зарплаты" icon={Settings2}>
+            <SalaryManager
+              salaries={salaries}
+              paymentSettings={paymentSettings}
+              onSalariesChange={setSalaries}
+              onPaymentSettingsChange={updatePaymentSettings}
+            />
+          </CollapsibleSection>
 
-            {/* Панель настроек */}
-            <Card>
-              <button
-                className="w-full flex items-center justify-between p-6 text-left"
-                onClick={() => setShowSettings(!showSettings)}
-              >
-                <div className="flex items-center gap-2">
-                  <Settings2 className="w-5 h-5" />
-                  <h2 className="font-semibold leading-none tracking-tight">Настройки зарплаты</h2>
-                </div>
-                {showSettings ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-              </button>
+          <CollapsibleSection title="Доплаты" icon={Settings2}>
+            <SurchargeManager />
+          </CollapsibleSection>
 
-              {showSettings && (
-                <CardContent className="px-6 pb-4">
-                  <SalaryManager settings={settings} onChange={updateSettings} />
-                </CardContent>
-              )}
-            </Card>
+          <CollapsibleSection title="Премии" icon={Plus}>
+            <BonusManager />
+          </CollapsibleSection>
 
-            {/* Премии */}
-            <Card>
-              <button
-                className="w-full flex items-center justify-between p-6 text-left"
-                onClick={() => setShowBonuses(!showBonuses)}
-              >
-                <div className="flex items-center gap-2">
-                  <Plus className="w-5 h-5" />
-                  <h2 className="font-semibold leading-none tracking-tight">Премии</h2>
-                </div>
-                {showBonuses ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-              </button>
+          <CollapsibleSection title="Отпуска" icon={Umbrella}>
+            <VacationManager />
+          </CollapsibleSection>
 
-              {showBonuses && (
-                <CardContent className="px-6 pb-4">
-                  <BonusManager />
-                </CardContent>
-              )}
-            </Card>
-
-            {/* Отпуска */}
-            <Card>
-              <button
-                className="w-full flex items-center justify-between p-6 text-left"
-                onClick={() => setShowVacations(!showVacations)}
-              >
-                <div className="flex items-center gap-2">
-                  <Umbrella className="w-5 h-5" />
-                  <h2 className="font-semibold leading-none tracking-tight">Отпуска</h2>
-                </div>
-                {showVacations ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-              </button>
-
-              {showVacations && (
-                <CardContent className="px-6 pb-4">
-                  <VacationManager />
-                </CardContent>
-              )}
-            </Card>
-
-            {/* Выгрузка данных */}
-            <Card>
-              <button
-                className="w-full flex items-center justify-between p-6 text-left"
-                onClick={() => setShowExport(!showExport)}
-              >
-                <div className="flex items-center gap-2">
-                  <Download className="w-5 h-5" />
-                  <h2 className="font-semibold leading-none tracking-tight">Выгрузка данных</h2>
-                </div>
-                {showExport ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-              </button>
-
-              {showExport && (
-                <CardContent className="px-6 pb-4">
-                  <div className="flex flex-col gap-2">
-                    <Button onClick={handleExport}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Сохранить
-                    </Button>
-                    <input
-                      ref={importRef}
-                      type="file"
-                      accept=".json"
-                      onChange={handleImport}
-                      className="hidden"
-                    />
-                    <Button variant="outline" onClick={() => importRef.current?.click()}>
-                      <Upload className="w-4 h-4 mr-2" />
-                      Загрузить
-                    </Button>
-                  </div>
-                </CardContent>
-              )}
-            </Card>
+          <CollapsibleSection title="Выгрузка данных" icon={Download}>
+            <ImportExportPanel />
+          </CollapsibleSection>
         </aside>
 
         {/* Правая колонка — календарь и итоги */}
@@ -215,29 +106,17 @@ function AppContent() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="w-5 h-5" />
-                  <h2 className="font-semibold leading-none tracking-tight">Календарь выплат</h2>
+                  <h2 className="font-semibold leading-none tracking-tight">
+                    Календарь выплат
+                  </h2>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    disabled={!canGoPrev}
-                    onClick={() => setDisplayYear((y) => y - 1)}
-                    className="h-8 w-8"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-                  </Button>
-                  <span className="text-lg font-bold min-w-[48px] text-center">{displayYear}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    disabled={!canGoNext}
-                    onClick={() => setDisplayYear((y) => y + 1)}
-                    className="h-8 w-8"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-                  </Button>
-                </div>
+                <YearNavigator
+                  year={displayYear}
+                  canGoPrev={canGoPrev}
+                  canGoNext={canGoNext}
+                  onPrev={() => setDisplayYear((y) => y - 1)}
+                  onNext={() => setDisplayYear((y) => y + 1)}
+                />
               </div>
             </CardHeader>
 
@@ -246,12 +125,14 @@ function AppContent() {
               <div className="flex-1 overflow-y-auto calendar-scroll">
                 <div className="pr-3 min-h-full">
                   {!calendarData ? (
-                    <p className="text-muted-foreground text-center py-8">Загрузка календаря...</p>
+                    <p className="text-muted-foreground text-center py-8">
+                      Загрузка календаря...
+                    </p>
                   ) : (
                     <YearCalendar
                       year={displayYear}
-                      payments={calculation?.payments ?? []}
-                      vacationDays={calculation?.vacationDays ?? new Map()}
+                      payments={payments}
+                      vacationDays={vacationDays}
                       calendarData={calendarData}
                     />
                   )}
@@ -261,20 +142,44 @@ function AppContent() {
               {/* Легенда — прижата к низу */}
               <div className="flex items-center gap-5 mt-3 pt-2 border-t shrink-0 text-xs flex-wrap">
                 <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full border" style={{ backgroundColor: 'var(--pay-salary-bg)', borderColor: 'var(--pay-salary-border)' }} />
+                  <span
+                    className="w-3 h-3 rounded-full border"
+                    style={{
+                      backgroundColor: "var(--pay-salary-bg)",
+                      borderColor: "var(--pay-salary-border)",
+                    }}
+                  />
                   <span>Выплата ЗП</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full border" style={{ backgroundColor: 'var(--pay-vacation-bg)', borderColor: 'var(--pay-vacation-border)' }} />
+                  <span
+                    className="w-3 h-3 rounded-full border"
+                    style={{
+                      backgroundColor: "var(--pay-vacation-bg)",
+                      borderColor: "var(--pay-vacation-border)",
+                    }}
+                  />
                   <span>Отпускные</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full border" style={{ backgroundColor: 'var(--pay-bonus-bg)', borderColor: 'var(--pay-bonus-border)' }} />
+                  <span
+                    className="w-3 h-3 rounded-full border"
+                    style={{
+                      backgroundColor: "var(--pay-bonus-bg)",
+                      borderColor: "var(--pay-bonus-border)",
+                    }}
+                  />
                   <span>Премия</span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-md border" style={{ backgroundColor: 'var(--vac-day-bg)', borderColor: 'var(--vac-day-border)' }} />
+                  <span
+                    className="w-3 h-3 rounded-md border"
+                    style={{
+                      backgroundColor: "var(--vac-day-bg)",
+                      borderColor: "var(--vac-day-border)",
+                    }}
+                  />
                   <span>Отпуск</span>
                 </div>
               </div>
@@ -282,36 +187,11 @@ function AppContent() {
           </Card>
 
           {/* Итоги */}
-          {calculation && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 shrink-0">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">Общий доход (до НДФЛ)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xl font-bold"><Money amount={totalGross} /></p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">НДФЛ за год</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xl font-bold text-red-500"><Money amount={totalNdfl} /></p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">На руки за год</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xl font-bold text-green-600"><Money amount={totalNet} /></p>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          <YearSummaryCards
+            totalGross={totalGross}
+            totalNdfl={totalNdfl}
+            totalNet={totalNet}
+          />
         </div>
       </main>
       <Toaster />
@@ -321,19 +201,9 @@ function AppContent() {
 
 export function App() {
   return (
-    <SalaryProvider>
-      <BonusesProvider>
-        <VacationsProvider>
-          <FactsProvider>
-            <PaymentsProvider>
-              <TooltipProvider delayDuration={200}>
-                <AppContent />
-              </TooltipProvider>
-            </PaymentsProvider>
-          </FactsProvider>
-        </VacationsProvider>
-      </BonusesProvider>
-    </SalaryProvider>
+    <AppProviders>
+      <AppContent />
+    </AppProviders>
   );
 }
 
