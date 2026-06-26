@@ -51,7 +51,9 @@ src/
 │   │   ├── model/              # import/export storage и JSON-операции
 │   │   └── ui/                 # панель импорта и экспорта
 │   ├── payments/
-│   │   ├── model/              # calculation engine, НДФЛ, provider, services
+│   │   ├── model/
+│   │   │   ├── calculation/    # расчётные модули: salary, vacation, surcharge, netGross и др.
+│   │   │   └── ndfl.ts         # НДФЛ по прогрессивной шкале
 │   │   ├── hooks/              # хуки платежей и календаря выплат
 │   │   └── repository/         # PaymentFacts repository
 │   ├── salary/
@@ -76,6 +78,7 @@ src/
 ├── shared/
 │   ├── lib/                    # общие утилиты форматирования, денег, дат
 │   ├── repository/             # общий Repository и LocalStorageRepository
+│   ├── result.ts               # общий тип Result<T, E> для успешных/ошибочных операций
 │   ├── types/                  # общие доменные типы и zod-схемы
 │   └── ui/                     # базовые shadcn/ui и общие UI-компоненты
 ├── __tests__/
@@ -112,13 +115,13 @@ src/
 
 Хуки лежат в `features/<feature>/hooks` и дают доступ к provider/service API:
 
-- `useSalaryProvider`
-- `useSalaryPaymentSettingsProvider`
-- `useSurchargeProvider`
-- `useBonusesProvider`
-- `useVacationsProvider`
-- `usePaymentsForYear`
-- `useCalendarForYear`
+- `useSalaryProvider`, `useSalaryService`
+- `useSalaryPaymentSettingsProvider`, `useSalaryPaymentSettingsService`
+- `useSurchargeProvider`, `useSurcharge`
+- `useBonusesProvider`, `useBonuses`
+- `useVacationsProvider`, `useVacations`
+- `usePaymentsForYear`, `useCalendarForYear`, `usePaymentsStore`, `useYearSummary`
+- `useCalendar`
 
 ## Производственный календарь
 
