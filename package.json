@@ -1,5 +1,6 @@
 {
   "name": "salary-buddy",
+  "packageManager": "pnpm@11.9.0",
   "private": true,
   "version": "0.1.0",
   "type": "module",
