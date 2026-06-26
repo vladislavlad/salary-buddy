@@ -47,11 +47,9 @@ jobs:
       - run: pnpm install && pnpm build
 
       - name: Upload artifact for deployment
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: github-pages
           path: ./dist
-          retention-days: 1
 
   deploy:
     needs: [build]
