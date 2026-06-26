@@ -46,10 +46,10 @@ jobs:
 
       - run: pnpm install && pnpm build
 
-      - name: Upload dist artifact
+      - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
         with:
-          name: dist
+          name: github-pages
           path: ./dist
           retention-days: 1
 
@@ -65,12 +65,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download dist artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: ./dist
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
