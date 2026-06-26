@@ -96,6 +96,7 @@ describe("VacationsProvider", () => {
       });
     });
 
+    await waitFor(() => expect(ref.current!.vacations).toHaveLength(1));
     const v = ref.current!.vacations[0]!;
     expect(v.id).toMatch(/^vac:\d{4}:\d{2}$/);
     expect(v.calendarDays).toBe(7);
@@ -139,6 +140,7 @@ describe("VacationsProvider", () => {
       });
     });
 
+    await waitFor(() => expect(ref.current!.vacations).toHaveLength(1));
     const v = ref.current!.vacations[0]!;
     expect(v.startDate.toString()).toBe("2026-06-01");
     expect(v.calendarDays).toBe(7);
