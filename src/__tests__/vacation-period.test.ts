@@ -44,6 +44,8 @@ async function vacGross(vac: Vacation, bonuses: Bonus[] = []): Promise<number> {
     bonuses,
     surcharges: [],
     vacations: [vac],
+    sickLeaves: [],
+    sickLeaveSettings: { enableTopUp: false, topUpDaysLimitPerYear: 30 },
     calendars: loadCalendars(2024, 2025),
   };
   const r = await svc.recalculate(input);

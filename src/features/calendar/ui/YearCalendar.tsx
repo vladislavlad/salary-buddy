@@ -80,6 +80,10 @@ function getPaymentLabel(type: string): string {
       return "Отпускные";
     case "bonus":
       return "Премия";
+    case "sick-leave-sfr":
+      return "Больничный (СФР)";
+    case "sick-leave-topup":
+      return "Доплата к больничному";
     default:
       return type;
   }
@@ -96,6 +100,8 @@ const PAYMENT_COLOR_VAR: Record<string, string> = {
   surcharge: "var(--pay-salary-bg)",
   vacation: "var(--pay-vacation-bg)",
   bonus: "var(--pay-bonus-bg)",
+  "sick-leave-sfr": "var(--pay-sickleave-bg)",
+  "sick-leave-topup": "var(--pay-sickleave-bg)",
 };
 
 function getStripeStyle(types: string[]): React.CSSProperties | undefined {

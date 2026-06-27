@@ -54,6 +54,8 @@ describe("PaymentsApplicationService.setFact", () => {
       bonuses: [],
       surcharges: [],
       vacations,
+      sickLeaves: [],
+      sickLeaveSettings: { enableTopUp: false, topUpDaysLimitPerYear: 30 },
       calendars: loadCalendars(2026),
     };
 
@@ -217,6 +219,8 @@ describe("PaymentsApplicationService.setFact", () => {
       bonuses: [],
       surcharges: [],
       vacations: [],
+      sickLeaves: [],
+      sickLeaveSettings: { enableTopUp: false, topUpDaysLimitPerYear: 30 },
       calendars,
     });
 
@@ -237,6 +241,8 @@ describe("PaymentsApplicationService.setFact", () => {
       bonuses: [],
       surcharges: [],
       vacations: [],
+      sickLeaves: [],
+      sickLeaveSettings: { enableTopUp: false, topUpDaysLimitPerYear: 30 },
       calendars,
     });
 
@@ -252,6 +258,8 @@ describe("PaymentsApplicationService.setFact", () => {
       bonuses: [],
       surcharges: [],
       vacations: [],
+      sickLeaves: [],
+      sickLeaveSettings: { enableTopUp: false, topUpDaysLimitPerYear: 30 },
       calendars,
     });
 

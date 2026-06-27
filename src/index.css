@@ -49,6 +49,11 @@
     --pay-bonus-border: #bfdbfe;
     --pay-bonus-text: #1e40af;
 
+    /* Payment cell colors — sick leave */
+    --pay-sickleave-bg: #ffedd5;
+    --pay-sickleave-border: #fed7aa;
+    --pay-sickleave-text: #9a3412;
+
     /* Vacation day */
     --vac-day-bg: #e5e7eb;
     --vac-day-border: #d1d5db;
@@ -99,6 +104,11 @@
     --pay-bonus-bg: rgba(30, 64, 175, 0.5);
     --pay-bonus-border: rgba(59, 130, 246, 0.7);
     --pay-bonus-text: #bfdbfe;
+
+    /* Payment cell colors — sick leave */
+    --pay-sickleave-bg: rgba(154, 52, 18, 0.4);
+    --pay-sickleave-border: rgba(194, 65, 12, 0.6);
+    --pay-sickleave-text: #fed7aa;
 
     /* Vacation day */
     --vac-day-bg: rgba(82, 82, 91, 0.5);

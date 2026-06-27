@@ -22,6 +22,7 @@ import {
   calculateFiftyFifty,
 } from "./period";
 import { calculateVacationPayment, type IncomeRecord } from "./vacation";
+import { calculateSickLeavePayments } from "./sick-leave";
 import { generatePaymentId } from "./paymentId";
 
 export type { CalculateAllInput, RawEvent } from "./types";
@@ -33,6 +34,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
     bonuses,
     surcharges,
     vacations,
+    sickLeaves,
     calendarsByYear,
     existingPayments = [],
     recalcFrom,
@@ -70,11 +72,18 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
         calendarData,
       );
 
-      const vacationDaysSet = new Set<string>();
+      const absenceDaysSet = new Set<string>();
       for (const v of vacations) {
         for (const d of v.dates) {
           if (d.year === year && d.month === month) {
-            vacationDaysSet.add(dateToKey(d));
+            absenceDaysSet.add(dateToKey(d));
+          }
+        }
+      }
+      for (const sl of sickLeaves) {
+        for (const d of sl.dates) {
+          if (d.year === year && d.month === month) {
+            absenceDaysSet.add(dateToKey(d));
           }
         }
       }
@@ -86,7 +95,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
         month,
         1,
         Math.min(15, lastDayOfMonth),
-        vacationDaysSet,
+        absenceDaysSet,
         totalWorkdaysInMonth,
         calendarData,
         sortedChanges,
@@ -97,7 +106,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
         month,
         16,
         lastDayOfMonth,
-        vacationDaysSet,
+        absenceDaysSet,
         totalWorkdaysInMonth,
         calendarData,
         sortedChanges,
@@ -125,7 +134,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
         month,
         1,
         lastDayOfMonth,
-        vacationDaysSet,
+        absenceDaysSet,
         totalWorkdaysInMonth,
         calendarData,
         sortedSurchargeChanges,
@@ -338,6 +347,32 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
     if (stabilized) break;
   }
 
+  // Расчёт больничных — после стабилизации отпускных.
+  const nonSickLeaveEvents = events.filter(
+    (e) => !e.type.startsWith("sick-leave"),
+  );
+  // Отпускные входят в базу СДЗ для больничных (облагаются взносами).
+  const incomeForSickLeave: IncomeRecord[] = nonSickLeaveEvents.map((e) => ({
+    type: e.type as IncomeRecord["type"],
+    accrualDate: e.accrualDate ?? e.date,
+    grossKop: e.grossKop,
+    factKop: factBySource.get(e.sourceId),
+  }));
+
+  const sickLeaveEvents = calculateSickLeavePayments(
+    sickLeaves,
+    input.sickLeaveSettings,
+    calendarsByYear,
+    incomeForSickLeave,
+    sortedChanges.length > 0 && sickLeaves.length > 0
+      // Берём оклад на дату начала первого больничного (для fallback СДЗ).
+      ? getSalaryForDate(sickLeaves[0]!.startDate, sortedChanges)
+      : 0,
+  );
+
+  events.length = 0;
+  events.push(...nonSickLeaveEvents, ...sickLeaveEvents);
+
   // Если есть recalcFrom — сохраняем платежи до этой даты из existingPayments
   let preservedPreRecalc: Payment[] = [];
   let initialAccumulatedIncomeKop = 0;
@@ -389,6 +424,24 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
         net: effectiveGrossKop,
         yearToDateGross: accumulatedIncomeKop,
         month: event.month,
+      });
+      continue;
+    }
+
+    // СФР часть больничного — без НДФЛ (СФР удержит самостоятельно).
+    if (event.type === "sick-leave-sfr") {
+      recalculatedPayments.push({
+        id: generatePaymentId(event.date, idCounter),
+        sourceId: event.sourceId,
+        date: event.date,
+        ...(event.originalDate ? { originalDate: event.originalDate } : {}),
+        type: "sick-leave-sfr",
+        salaryAmount: 0,
+        gross: event.grossKop,
+        ndfls: [],
+        ndfl: 0,
+        net: effectiveGrossKop,
+        yearToDateGross: accumulatedIncomeKop,
       });
       continue;
     }

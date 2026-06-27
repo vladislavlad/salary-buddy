@@ -6,6 +6,10 @@ export {
   type BonusType,
   VacationTypeSchema,
   type VacationType,
+  SickLeaveReasonSchema,
+  type SickLeaveReason,
+  SickLeaveExperienceSchema,
+  type SickLeaveExperience,
 } from "./enums";
 
 // LocalDate
@@ -54,9 +58,20 @@ export {
   type VacationUpdateRequest,
 } from "./vacation";
 
+// Sick Leave
+export {
+  SickLeaveSchema,
+  type SickLeave,
+  type SickLeaveCreateRequest,
+  type SickLeaveUpdateRequest,
+  SickLeaveSettingsSchema,
+  type SickLeaveSettings,
+} from "./sick-leave";
+
 // Payment
 export {
   PaymentSchema,
+  type PaymentType,
   type TaxBracketBreakdown,
   type Payment,
 } from "./payment";

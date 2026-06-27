@@ -1,4 +1,4 @@
-import type { CalendarData, Vacation } from "@/shared/types";
+import type { CalendarData, Vacation, PaymentType } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 import { localDate as ld } from "@/shared/types/local-date";
 import { Temporal } from "@js-temporal/polyfill";
@@ -12,7 +12,7 @@ import { AVG_MONTH_DAYS } from "./types";
  * выплаченная в начале марта, относится к февралю.
  */
 export interface IncomeRecord {
-  type: "advance" | "salary" | "bonus" | "surcharge";
+  type: PaymentType;
   /** Первый день месяца начисления — по нему определяется расчётный период. */
   accrualDate: LocalDate;
   grossKop: number;

@@ -3,6 +3,7 @@ import { useSalaryProvider } from "@/features/salary/hooks/useSalaryProvider";
 import { useSalaryPaymentSettingsProvider } from "@/features/salary-payment-settings/hooks/useSalaryPaymentSettingsProvider";
 import { useBonusesProvider } from "@/features/bonus/hooks/useBonusesProvider";
 import { useVacationsProvider } from "@/features/vacation/hooks/useVacationsProvider";
+import { useSickLeavesProvider } from "@/features/sick-leave/hooks/useSickLeavesProvider";
 import { useSurchargeProvider } from "@/features/surcharge/hooks/useSurchargeProvider";
 import { useCalendar } from "@/features/calendar/hooks/useCalendar.ts";
 import type { Payment } from "@/shared/types";
@@ -20,6 +21,7 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
   const { bonuses, loading: bonusesLoading } = useBonusesProvider();
   const { surcharges, loading: surchargesLoading } = useSurchargeProvider();
   const { vacations, loading: vacationsLoading } = useVacationsProvider();
+  const { sickLeaves, settings: sickLeaveSettings, loading: sickLeavesLoading } = useSickLeavesProvider();
   const { calendars, isLoading: calendarLoading } = useCalendar();
   const [payments, setPayments] = useState<Payment[]>([]);
 
@@ -31,6 +33,7 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
     !bonusesLoading &&
     !surchargesLoading &&
     !vacationsLoading &&
+    !sickLeavesLoading &&
     !calendarLoading;
 
   const service = useMemo(
@@ -47,9 +50,11 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
       bonuses,
       surcharges,
       vacations,
+      sickLeaves,
+      sickLeaveSettings,
       calendars,
     }),
-    [paymentSettings, salaries, bonuses, surcharges, vacations, calendars],
+    [paymentSettings, salaries, bonuses, surcharges, vacations, sickLeaves, sickLeaveSettings, calendars],
   );
 
   useEffect(() => {

@@ -8,6 +8,20 @@ export interface TaxBracketBreakdown {
   amount: number; // сумма налога по этой ставке (копейки)
 }
 
+// Единый список типов выплат — источник истины для Payment и PaymentSchema.
+const PAYMENT_TYPES = [
+  "advance",
+  "salary",
+  "vacation",
+  "bonus",
+  "surcharge",
+  "sick-leave",
+  "sick-leave-sfr",
+  "sick-leave-topup",
+] as const;
+
+export type PaymentType = (typeof PAYMENT_TYPES)[number];
+
 // Информация о выплате — единый источник данных для календаря и итогов
 // Все денежные поля хранятся в копейках.
 export interface Payment {
@@ -15,7 +29,7 @@ export interface Payment {
   sourceId: string; // ID сущности-источника: sal:{y}:{m}:a, bon:{y}:{seq}, vac:{y}:{seq}, sur:{y}:{m}
   date: LocalDate; // фактическая дата выплаты (после смещения на выходные)
   originalDate?: LocalDate; // исходная дата до смещения (нет у премий и доплат)
-  type: "advance" | "salary" | "vacation" | "bonus" | "surcharge";
+  type: PaymentType;
   salaryAmount: number; // оклад на момент выплаты, копейки (0 для отпускных, премий и доплат)
   gross: number; // плановая сумма до НДФЛ, копейки (для доплаты — сумма без налога)
   fact?: number; // фактическая gross-сумма, копейки (если подтверждена)
@@ -31,7 +45,7 @@ export const PaymentSchema = z.object({
   sourceId: z.string(),
   date: LocalDateSchema,
   originalDate: LocalDateSchema.optional(),
-  type: z.enum(["advance", "salary", "vacation", "bonus", "surcharge"]),
+  type: z.enum(PAYMENT_TYPES),
   salaryAmount: z.number(),
   gross: z.number(),
   fact: z.number().optional(),

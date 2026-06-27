@@ -5,6 +5,9 @@ import type {
   CalendarData,
   Vacation,
   SurchargeChange,
+  SickLeave,
+  SickLeaveSettings,
+  PaymentType,
 } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 
@@ -13,16 +16,18 @@ export interface CalculateAllInput {
   bonuses: Bonus[];
   surcharges: SurchargeChange[];
   vacations: Vacation[];
+  sickLeaves: SickLeave[];
+  sickLeaveSettings: SickLeaveSettings;
   calendarsByYear: Map<number, CalendarData>;
   existingPayments?: Payment[];
   recalcFrom?: LocalDate;
 }
 
 export interface RawEvent {
-  sourceId: string; // ID сущности-источника: sal:{y}:{m}:a, bon:{y}:{seq}, vac:{y}:{seq}, sur:{y}:{m}
+  sourceId: string; // ID сущности-источника: sal:{y}:{m}:a, bon:{y}:{seq}, vac:{y}:{seq}, sur:{y}:{m}, sick:{y}:{seq}
   date: LocalDate;
   originalDate?: LocalDate;
-  type: "advance" | "salary" | "vacation" | "bonus" | "surcharge";
+  type: PaymentType;
   grossKop: number; // копейки
   salaryAmountKop: number; // оклад на момент выплаты, копейки (0 для отпускных и доплат)
   month?: number;

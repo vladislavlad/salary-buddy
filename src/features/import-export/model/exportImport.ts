@@ -11,10 +11,20 @@ import {
   saveSurcharges,
   loadPayments,
   savePayments,
+  loadSickLeaves,
+  saveSickLeaves,
+  loadSickLeaveSettings,
+  saveSickLeaveSettings,
   clearAll,
 } from "@/features/import-export/model/storage";
 import { DEFAULT_SALARY_PAYMENT_SETTINGS } from "@/features/salary-payment-settings/model/defaultSalaryPaymentSettings";
+import type { SickLeaveSettings } from "@/shared/types";
 import { ExportDataSchema } from "@/shared/types/exportImport";
+
+const DEFAULT_SICK_LEAVE_SETTINGS: SickLeaveSettings = {
+  enableTopUp: false,
+  topUpDaysLimitPerYear: 30,
+};
 
 /**
  * Собирает все данные из хранилищ в объект для экспорта.
@@ -23,13 +33,15 @@ export async function collectExportData(): Promise<ReturnType<typeof ExportDataS
   const today = new Date();
   const exportDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-  const [salaryPaymentSettings, salaries, bonuses, vacations, surcharges, payments] = await Promise.all([
+  const [salaryPaymentSettings, salaries, bonuses, vacations, surcharges, payments, sickLeaves, sickLeaveSettings] = await Promise.all([
     loadSalaryPaymentSettings(),
     loadSalaries(),
     loadBonuses(),
     loadVacations(),
     loadSurcharges(),
     loadPayments(),
+    loadSickLeaves(),
+    loadSickLeaveSettings(),
   ]);
 
   return ExportDataSchema.parse({
@@ -40,6 +52,8 @@ export async function collectExportData(): Promise<ReturnType<typeof ExportDataS
     vacations,
     surcharges,
     payments,
+    sickLeaves,
+    sickLeaveSettings: sickLeaveSettings ?? DEFAULT_SICK_LEAVE_SETTINGS,
   });
 }
 
@@ -62,5 +76,7 @@ export async function importFromFile(file: File): Promise<void> {
     saveVacations(validated.vacations),
     saveSurcharges(validated.surcharges),
     savePayments(validated.payments),
+    saveSickLeaves(validated.sickLeaves),
+    saveSickLeaveSettings(validated.sickLeaveSettings ?? DEFAULT_SICK_LEAVE_SETTINGS),
   ]);
 }

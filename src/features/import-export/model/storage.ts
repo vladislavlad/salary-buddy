@@ -4,6 +4,8 @@ import type {
   Vacation,
   SurchargeChange,
   Payment,
+  SickLeave,
+  SickLeaveSettings,
 } from "@/shared/types";
 import {
   bonusRepository,
@@ -12,6 +14,8 @@ import {
   vacationRepository,
   salaryPaymentSettingsRepository,
   paymentsRepository,
+  sickLeaveRepository,
+  sickLeaveSettingsRepository,
 } from "@/app/repositories";
 
 /** Очищает все ключи Salary Buddy из localStorage. */
@@ -23,6 +27,8 @@ export async function clearAll(): Promise<void> {
     vacationRepository.clear(),
     salaryPaymentSettingsRepository.clear(),
     paymentsRepository.clear(),
+    sickLeaveRepository.clear(),
+    sickLeaveSettingsRepository.clear(),
   ]);
 }
 
@@ -76,4 +82,21 @@ export async function loadPayments(): Promise<Payment[]> {
 
 export async function savePayments(payments: Payment[]): Promise<void> {
   await paymentsRepository.saveAll(payments);
+}
+
+export async function loadSickLeaves(): Promise<SickLeave[]> {
+  return sickLeaveRepository.findAll();
+}
+
+export async function saveSickLeaves(sickLeaves: SickLeave[]): Promise<void> {
+  await sickLeaveRepository.saveAll(sickLeaves);
+}
+
+export async function loadSickLeaveSettings(): Promise<SickLeaveSettings | undefined> {
+  const result = await sickLeaveSettingsRepository.get();
+  return result ?? undefined;
+}
+
+export async function saveSickLeaveSettings(settings: SickLeaveSettings): Promise<void> {
+  await sickLeaveSettingsRepository.save(settings);
 }

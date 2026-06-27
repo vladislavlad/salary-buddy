@@ -192,6 +192,8 @@ describe("Отпуск через границу года", () => {
       bonuses: [],
       surcharges: [],
       vacations: [vac],
+      sickLeaves: [],
+      sickLeaveSettings: { enableTopUp: false, topUpDaysLimitPerYear: 30 },
       calendars: loadCalendars(2024, 2025, 2026),
     };
 

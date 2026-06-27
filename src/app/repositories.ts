@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { LocalStorageRepository } from "@/shared/repository/LocalStorageRepository";
 import { LocalStorageSalaryPaymentSettingsRepository } from "@/features/salary-payment-settings/repository/LocalStorageSalaryPaymentSettingsRepository";
-import { BonusSchema, PaymentSchema, SalarySchema, SurchargeChangeSchema, VacationSchema } from "@/shared/types";
+import { LocalStorageSickLeaveSettingsRepository } from "@/features/sick-leave/repository/LocalStorageSickLeaveSettingsRepository";
+import { BonusSchema, PaymentSchema, SalarySchema, SickLeaveSchema, SurchargeChangeSchema, VacationSchema } from "@/shared/types";
 
 export const bonusRepository = new LocalStorageRepository(
   "salary-buddy-bonuses",
@@ -17,6 +18,12 @@ export const salaryRepository = new LocalStorageRepository(
   "salary-buddy-salaries",
   z.array(SalarySchema) as z.ZodType<z.infer<typeof SalarySchema>[]>,
 );
+export const sickLeaveRepository = new LocalStorageRepository(
+  "salary-buddy-sick-leaves",
+  z.array(SickLeaveSchema) as z.ZodType<z.infer<typeof SickLeaveSchema>[]>,
+);
+export const sickLeaveSettingsRepository =
+  new LocalStorageSickLeaveSettingsRepository();
 export const surchargeRepository = new LocalStorageRepository(
   "salary-buddy-surcharges",
   z.array(SurchargeChangeSchema) as z.ZodType<z.infer<typeof SurchargeChangeSchema>[]>,

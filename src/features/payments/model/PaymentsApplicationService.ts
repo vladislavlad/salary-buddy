@@ -4,6 +4,8 @@ import type {
   CalendarData,
   Payment,
   SalaryCalculationSettings,
+  SickLeave,
+  SickLeaveSettings,
   SurchargeChange,
   Vacation,
 } from "@/shared/types";
@@ -15,6 +17,8 @@ export interface PaymentCalculationInput {
   bonuses: Bonus[];
   surcharges: SurchargeChange[];
   vacations: Vacation[];
+  sickLeaves: SickLeave[];
+  sickLeaveSettings: SickLeaveSettings;
   calendars: Map<number, CalendarData>;
 }
 

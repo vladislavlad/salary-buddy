@@ -3,6 +3,7 @@ import {
   Plus,
   Settings2,
   Calendar as CalendarIcon,
+  HeartPulse,
   Umbrella,
   Download,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import { SurchargeManager } from "@/features/surcharge/ui/SurchargeManager";
 import { YearCalendar } from "@/features/calendar/ui/YearCalendar";
 import { YearNavigator } from "@/features/calendar/ui/YearNavigator";
 import { BonusManager } from "@/features/bonus/ui/BonusManager";
+import { SickLeaveManager } from "@/features/sick-leave/ui/SickLeaveManager";
 import { VacationManager } from "@/features/vacation/ui/VacationManager";
 import { ThemeToggle } from "@/shared/ui/ThemeToggle";
 import { useSalaryProvider } from "@/features/salary/hooks/useSalaryProvider";
@@ -91,6 +93,10 @@ function AppContent() {
 
           <CollapsibleSection title="Отпуска" icon={Umbrella}>
             <VacationManager />
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Больничные" icon={HeartPulse}>
+            <SickLeaveManager />
           </CollapsibleSection>
 
           <CollapsibleSection title="Выгрузка данных" icon={Download}>
@@ -170,6 +176,16 @@ function AppContent() {
                     }}
                   />
                   <span>Премия</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-3 h-3 rounded-full border"
+                    style={{
+                      backgroundColor: "var(--pay-sickleave-bg)",
+                      borderColor: "var(--pay-sickleave-border)",
+                    }}
+                  />
+                  <span>Больничный</span>
                 </div>
 
                 <div className="flex items-center gap-2">

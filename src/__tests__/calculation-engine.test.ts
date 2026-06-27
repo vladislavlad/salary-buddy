@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { calculateAll } from "@/features/payments/model/calculation-engine";
-import type { SalaryCalculationSettings, CalendarData } from "@/shared/types";
+import type { SalaryCalculationSettings, CalendarData, SickLeaveSettings } from "@/shared/types";
 import { localDate } from "@/shared/types/local-date";
 import { loadCalendar } from "@/__tests__/fixtures/calendars.ts";
 
@@ -25,11 +25,18 @@ describe("calculation-engine", () => {
     const calendarsByYear = new Map<number, CalendarData>();
     calendarsByYear.set(year, loadCalendar(year));
 
+    const sickLeaveSettings: SickLeaveSettings = {
+      enableTopUp: false,
+      topUpDaysLimitPerYear: 30,
+    };
+
     const payments = calculateAll({
       settings,
       bonuses: [],
       surcharges: [],
       vacations: [],
+      sickLeaves: [],
+      sickLeaveSettings,
       calendarsByYear,
     });
 

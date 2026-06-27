@@ -4,6 +4,7 @@ import { CalendarProvider } from "@/features/calendar/model/CalendarProvider";
 import { PaymentsProvider } from "@/features/payments/model/PaymentsProvider";
 import { SalaryPaymentSettingsProvider } from "@/features/salary-payment-settings/model/SalaryPaymentSettingsProvider";
 import { SalaryProvider } from "@/features/salary/model/SalaryProvider";
+import { SickLeavesProvider } from "@/features/sick-leave/model/SickLeavesProvider";
 import { SurchargeProvider } from "@/features/surcharge/model/SurchargeProvider";
 import { VacationsProvider } from "@/features/vacation/model/VacationsProvider";
 
@@ -15,11 +16,13 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           <SurchargeProvider>
             <BonusesProvider>
               <VacationsProvider>
-                <PaymentsProvider>
-                  <TooltipProvider delayDuration={200}>
-                    {children}
-                  </TooltipProvider>
-                </PaymentsProvider>
+                <SickLeavesProvider>
+                  <PaymentsProvider>
+                    <TooltipProvider delayDuration={200}>
+                      {children}
+                    </TooltipProvider>
+                  </PaymentsProvider>
+                </SickLeavesProvider>
               </VacationsProvider>
             </BonusesProvider>
           </SurchargeProvider>

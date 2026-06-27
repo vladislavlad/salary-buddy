@@ -28,7 +28,7 @@ export function calculatePeriodGross(
   month: number,
   startDay: number,
   endDay: number,
-  vacationDaysSet: Set<string>,
+  absenceDaysSet: Set<string>,
   totalWorkdaysInMonth: number,
   calendarData: CalendarData,
   sortedChanges: readonly SalaryChange[],
@@ -43,7 +43,7 @@ export function calculatePeriodGross(
   let grossKop = 0;
 
   for (const day of workdays) {
-    if (vacationDaysSet.has(dateToKey(day))) continue;
+    if (absenceDaysSet.has(dateToKey(day))) continue;
 
     const salaryKop = getSalaryForDate(day, sortedChanges);
     if (salaryKop <= 0) continue;

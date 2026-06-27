@@ -33,7 +33,7 @@ export function calculatePeriodSurcharge(
   month: number,
   startDay: number,
   endDay: number,
-  vacationDaysSet: Set<string>,
+  absenceDaysSet: Set<string>,
   totalWorkdaysInMonth: number,
   calendarData: CalendarData,
   sortedSurchargeChanges: readonly SurchargeChange[],
@@ -48,7 +48,7 @@ export function calculatePeriodSurcharge(
   let surchargeKop = 0;
 
   for (const day of workdays) {
-    if (vacationDaysSet.has(dateToKey(day))) continue;
+    if (absenceDaysSet.has(dateToKey(day))) continue;
 
     const surchargeAmountKop = getSurchargeForDate(day, sortedSurchargeChanges);
     surchargeKop += divideRound(surchargeAmountKop, totalWorkdaysInMonth);
