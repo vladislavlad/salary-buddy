@@ -13,7 +13,7 @@ import { AVG_MONTH_DAYS } from "./types";
  */
 export interface IncomeRecord {
   type: PaymentType;
-  /** Первый день месяца начисления — по нему определяется расчётный период. */
+  /** Первый день месяца начисления – по нему определяется расчётный период. */
   accrualDate: LocalDate;
   grossKop: number;
   factKop?: number;
@@ -56,14 +56,14 @@ export function calculateVacationPayment(
 
   const vacStartMonth = vacation.startDate.month;
   const vacStartYear = vacation.startDate.year;
-  // Расчётный период — 12 календарных месяцев ДО месяца отпуска.
+  // Расчётный период – 12 календарных месяцев ДО месяца отпуска.
   // Для отпуска в фев 2025 это [фев 2024, фев 2025): месяц отпуска исключён,
   // прошлый год учитывается полностью.
   const periodEnd = ld(vacStartYear, vacStartMonth, 1);
   const periodStart = periodEnd.subtract({ months: 12 });
 
   // Отпускные за прошлые отпуска НЕ входят в доход (они не попадают в
-  // paymentsForIncome), а отпускные дни исключаются из includedDays ниже —
+  // paymentsForIncome), а отпускные дни исключаются из includedDays ниже –
   // поэтому отдельное вычитание отпускных из дохода не требуется.
   const includedIncomeKop = getIncomeForPeriod(
     periodStart,

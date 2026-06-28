@@ -41,7 +41,7 @@ describe("sick-leave-edge-cases", () => {
 
   describe("кросс-год больничные", () => {
     it("illness: дни 1-3 в 2025, СФР с 4-го дня переходит в 2026", () => {
-      // 30.12.2025 — 05.01.2026 (7 дней): 2 дня в 2025, 5 дней в 2026
+      // 30.12.2025 – 05.01.2026 (7 дней): 2 дня в 2025, 5 дней в 2026
       const dates = [];
       for (let i = 0; i < 7; i++) {
         dates.push(ld(2025, 12, 30).add({ days: i }));
@@ -65,7 +65,7 @@ describe("sick-leave-edge-cases", () => {
 
       const avgDailyEarningsKop = Math.round(100_000_000 / 730);
 
-      // 2025: дни 1-2 (работодатель, 2 дня) — СФР нет (день 4+ в 2026)
+      // 2025: дни 1-2 (работодатель, 2 дня) – СФР нет (день 4+ в 2026)
       const emp2025 = events.find((e) => e.type === "sick-leave" && e.sourceId.includes(":2025"));
       expect(emp2025).toBeDefined();
       expect(emp2025!.grossKop).toBe(2 * avgDailyEarningsKop);
@@ -83,8 +83,8 @@ describe("sick-leave-edge-cases", () => {
       expect(sfr2026!.grossKop).toBe(4 * avgDailyEarningsKop);
     });
 
-    it("illness: все 3 дня работодателя в одном году, СФР — в другом", () => {
-      // 29.12.2025 — 02.01.2026 (5 дней)
+    it("illness: все 3 дня работодателя в одном году, СФР – в другом", () => {
+      // 29.12.2025 – 02.01.2026 (5 дней)
       const dates = [];
       for (let i = 0; i < 5; i++) {
         dates.push(ld(2025, 12, 29).add({ days: i }));
@@ -108,12 +108,12 @@ describe("sick-leave-edge-cases", () => {
 
       const avgDailyEarningsKop = Math.round(100_000_000 / 730);
 
-      // 2025: дни 1-3 (работодатель) — все в одном году
+      // 2025: дни 1-3 (работодатель) – все в одном году
       const emp2025 = events.find((e) => e.type === "sick-leave" && e.sourceId.includes(":2025"));
       expect(emp2025).toBeDefined();
       expect(emp2025!.grossKop).toBe(3 * avgDailyEarningsKop);
 
-      // 2025: нет СФР (дни 1-3 — работодатель)
+      // 2025: нет СФР (дни 1-3 – работодатель)
       const sfr2025 = events.find((e) => e.type === "sick-leave-sfr" && e.sourceId.includes(":2025"));
       expect(sfr2025).toBeUndefined();
 
@@ -124,7 +124,7 @@ describe("sick-leave-edge-cases", () => {
     });
 
     it("child-care-7to15: порог 10 дней пересекает год", () => {
-      // 20.12.2025 — 05.01.2026 (17 дней)
+      // 20.12.2025 – 05.01.2026 (17 дней)
       const dates = [];
       for (let i = 0; i < 17; i++) {
         dates.push(ld(2025, 12, 20).add({ days: i }));
@@ -160,7 +160,7 @@ describe("sick-leave-edge-cases", () => {
       expect(sfr2026).toBeDefined();
       expect(sfr2026!.grossKop).toBe(5 * Math.round(avgDailyEarningsKop * 0.5));
 
-      // Нет employer benefit (child-care — СФР с 1 дня)
+      // Нет employer benefit (child-care – СФР с 1 дня)
       expect(events.find((e) => e.type === "sick-leave")).toBeUndefined();
     });
 
@@ -188,7 +188,7 @@ describe("sick-leave-edge-cases", () => {
 
       const avgDailyEarningsKop = Math.round(100_000_000 / 730);
 
-      // 2025: 3 дня (30, 31.12 + 1.01? Нет — 30, 31 в 2025)
+      // 2025: 3 дня (30, 31.12 + 1.01? Нет – 30, 31 в 2025)
       const datesIn2025 = dates.filter((d) => d.year === 2025);
       const datesIn2026 = dates.filter((d) => d.year === 2026);
 
@@ -198,7 +198,7 @@ describe("sick-leave-edge-cases", () => {
       const sfr2026 = events.find((e) => e.type === "sick-leave-sfr" && e.sourceId.includes(":2026"));
       expect(sfr2026!.grossKop).toBe(datesIn2026.length * avgDailyEarningsKop);
 
-      // Стаж under5 не влияет — work-injury всегда 100%
+      // Стаж under5 не влияет – work-injury всегда 100%
       expect(events.find((e) => e.type === "sick-leave")).toBeUndefined();
     });
   });
@@ -307,7 +307,7 @@ describe("sick-leave-edge-cases", () => {
 
       const avgDailyEarningsKop = Math.round(100_000_000 / 730);
 
-      // День 1 — работодатель
+      // День 1 – работодатель
       const empEvent = events.find((e) => e.type === "sick-leave");
       expect(empEvent).toBeDefined();
       expect(empEvent!.grossKop).toBe(avgDailyEarningsKop);
@@ -438,7 +438,7 @@ describe("sick-leave-edge-cases", () => {
         ld(2026, 6, 1),
         5,
         "child-care-under7",
-        "under5", // стаж < 5 лет — но не должен влиять
+        "under5", // стаж < 5 лет – но не должен влиять
       );
 
       const events = calculateSickLeavePayments(

@@ -58,7 +58,7 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    // Пока не все источники загружены, отдаём сохранённое без перезаписи —
+    // Пока не все источники загружены, отдаём сохранённое без перезаписи –
     // иначе частичный input затрёт facted-платежи ещё не загруженных источников.
     const result = sourcesReady
       ? service.recalculate(input)

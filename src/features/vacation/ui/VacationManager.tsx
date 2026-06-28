@@ -21,7 +21,7 @@ export function VacationManager() {
     Temporal.PlainDate.compare(a.startDate, b.startDate),
   );
 
-  // Берём календарь года начала отпуска — для inline-валидации в форме
+  // Берём календарь года начала отпуска – для inline-валидации в форме
   const newCalendarData = calendars.get(newStartDate.year) ?? null;
 
   const handleSave = async (data: {
@@ -84,7 +84,7 @@ export function VacationManager() {
 
       {!addingNew ? (
         <Button onClick={() => setAddingNew(true)} className="w-full">
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="w-4 h-4" />
           Добавить
         </Button>
       ) : (

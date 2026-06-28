@@ -8,7 +8,7 @@ export interface TaxBracketBreakdown {
   amount: number; // сумма налога по этой ставке (копейки)
 }
 
-// Единый список типов выплат — источник истины для Payment и PaymentSchema.
+// Единый список типов выплат – источник истины для Payment и PaymentSchema.
 const PAYMENT_TYPES = [
   "advance",
   "salary",
@@ -22,16 +22,16 @@ const PAYMENT_TYPES = [
 
 export type PaymentType = (typeof PAYMENT_TYPES)[number];
 
-// Информация о выплате — единый источник данных для календаря и итогов
+// Информация о выплате – единый источник данных для календаря и итогов
 // Все денежные поля хранятся в копейках.
 export interface Payment {
-  id: string; // pay:{year}:{month}:{day}:{increment} — уникальный ID платежа
+  id: string; // pay:{year}:{month}:{day}:{increment} – уникальный ID платежа
   sourceId: string; // ID сущности-источника: sal:{y}:{m}:a, bon:{y}:{seq}, vac:{y}:{seq}, sur:{y}:{m}
   date: LocalDate; // фактическая дата выплаты (после смещения на выходные)
   originalDate?: LocalDate; // исходная дата до смещения (нет у премий и доплат)
   type: PaymentType;
   salaryAmount: number; // оклад на момент выплаты, копейки (0 для отпускных, премий и доплат)
-  gross: number; // плановая сумма до НДФЛ, копейки (для доплаты — сумма без налога)
+  gross: number; // плановая сумма до НДФЛ, копейки (для доплаты – сумма без налога)
   fact?: number; // фактическая gross-сумма, копейки (если подтверждена)
   ndfls: TaxBracketBreakdown[]; // разбивка НДФЛ по ставкам [{ставка, размер}, ...]
   ndfl: number; // итоговый НДФЛ = сумма всех элементов ndfls, копейки (0 для доплаты)

@@ -38,3 +38,13 @@ export interface RawEvent {
 
 /** Среднее число календарных дней в месяце (для расчёта отпускных по ТК РФ). */
 export const AVG_MONTH_DAYS = 29.3;
+
+/**
+ * Даты выплаты аванса и зарплаты за рабочий месяц (год-месяц).
+ * Используется для размещения выплат работодателя по больничному:
+ * дни 1-15 → дата аванса, дни 16+ → дата зарплаты.
+ */
+export interface MonthPaymentDates {
+  advanceDate: LocalDate | null;
+  salaryDate: LocalDate | null;
+}

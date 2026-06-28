@@ -62,7 +62,7 @@ describe("VacationsProvider", () => {
     return { ref, repository };
   }
 
-  it("начальное состояние — пустой массив", async () => {
+  it("начальное состояние – пустой массив", async () => {
     const { ref } = setup();
     await waitFor(() => expect(ref.current).not.toBeNull());
     expect(ref.current!.vacations).toEqual([]);

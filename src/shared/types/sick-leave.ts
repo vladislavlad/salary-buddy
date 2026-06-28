@@ -33,7 +33,7 @@ export interface SickLeaveUpdateRequest {
 // Настройки доплаты от работодателя
 export const SickLeaveSettingsSchema = z.object({
   enableTopUp: z.boolean().default(false),
-  topUpDaysLimitPerYear: z.number().int().min(1).default(30),
+  topUpDaysLimitPerYear: z.number().int().min(1).default(20),
 });
 
 export type SickLeaveSettings = z.infer<typeof SickLeaveSettingsSchema>;

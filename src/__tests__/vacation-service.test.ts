@@ -96,7 +96,7 @@ describe("vacation-service", () => {
     const cal26 = loadCalendar(2026);
     const service = createService(new Map([[2026, cal26]]));
 
-    // 01.01 — Новый год, код 8 в фикстуре
+    // 01.01 – Новый год, код 8 в фикстуре
     const result = await service.add({
       startDate: localDate(2026, 1, 1),
       calendarDays: 7,
@@ -111,7 +111,7 @@ describe("vacation-service", () => {
     const cal26 = loadCalendar(2026);
     const service = createService(new Map([[2026, cal26]]));
 
-    // 12.01 — первый рабочий день после новогодних праздников, 3 дня
+    // 12.01 – первый рабочий день после новогодних праздников, 3 дня
     const result = await service.add({
       startDate: localDate(2026, 1, 12),
       calendarDays: 3,
@@ -163,7 +163,7 @@ describe("vacation-service", () => {
     expect(created.ok).toBe(true);
     if (!created.ok) return;
 
-    // Пытаемся изменить на праздник — Новый год
+    // Пытаемся изменить на праздник – Новый год
     const result = await service.update({
       vacationId: created.value.id,
       startDate: localDate(2026, 1, 1),

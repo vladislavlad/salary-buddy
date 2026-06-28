@@ -2,7 +2,7 @@ import { z } from "zod";
 import { BonusTypeSchema } from "./enums";
 import { type LocalDate, LocalDateSchema } from "./local-date";
 
-// Премия — для типа 'custom' amount хранится в копейках (до НДФЛ), для 'salaries' — кол-во окладов.
+// Премия – для типа 'custom' amount хранится в копейках (до НДФЛ), для 'salaries' – кол-во окладов.
 export const BonusSchema = z.object({
   id: z.string(),
   date: LocalDateSchema,

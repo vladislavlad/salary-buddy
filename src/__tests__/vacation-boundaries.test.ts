@@ -43,7 +43,7 @@ function paidVac(
 
 // ─── getIncomeForPeriod: точные границы полуинтервала [from, to) ──────────────
 
-describe("getIncomeForPeriod — границы периода", () => {
+describe("getIncomeForPeriod – границы периода", () => {
   const from = localDate(2024, 3, 1);
   const to = localDate(2025, 3, 1);
 
@@ -79,14 +79,14 @@ describe("getIncomeForPeriod — границы периода", () => {
 const cal2025 = loadCalendar(2025);
 const INCOME_PER_MONTH = 100_000 * 100; // 100 000 ₽ в копейках
 
-describe("calculateVacationPayment — выбор периода и СДЗ", () => {
+describe("calculateVacationPayment – выбор периода и СДЗ", () => {
   it("отпуск март 2025: период [мар2024, фев2025], доходы вне периода игнорируются", () => {
     const vac = paidVac("v", localDate(2025, 3, 3), 14);
     // 12 месяцев в периоде: мар2024 … фев2025
     const inPeriod: IncomeRecord[] = Array.from({ length: 12 }, (_, i) =>
       inc(localDate(2024, 3, 1).add({ months: i }), INCOME_PER_MONTH),
     );
-    // приманки вне периода — не должны попасть в расчёт
+    // приманки вне периода – не должны попасть в расчёт
     const decoys: IncomeRecord[] = [
       inc(localDate(2024, 2, 1), 99_000_000), // до периода
       inc(localDate(2025, 3, 1), 99_000_000), // месяц отпуска
@@ -183,7 +183,7 @@ describe("Отпуск через границу года", () => {
         },
       ],
     };
-    // 29 дек 2025 — 4 янв 2026 (7 дней), начало в декабре → период [дек2024, ноя2025]
+    // 29 дек 2025 – 4 янв 2026 (7 дней), начало в декабре → период [дек2024, ноя2025]
     const vac = paidVac("vcross", localDate(2025, 12, 29), 7);
     const repo = new InMemoryRepository<Payment>([]);
     const svc = new PaymentsApplicationService(repo);

@@ -54,7 +54,7 @@ export function SickLeaveForm({
     initial?.startDate ?? localToday(),
   );
   const [daysInput, setDaysInput] = useState<string>(
-    String(initial?.calendarDays ?? 7),
+    String(initial?.calendarDays ?? 5),
   );
   const [reason, setReason] = useState<SickLeaveReason>(initial?.reason ?? "illness");
   const [experience, setExperience] = useState<SickLeaveExperience>(initial?.experience ?? "8plus");
@@ -163,7 +163,7 @@ export function SickLeaveForm({
             });
           }}
         >
-          <Check className="w-3.5 h-3.5 mr-1" />
+          <Check className="w-3.5 h-3.5" />
           {isEdit ? "Сохранить" : "Добавить"}
         </Button>
       </div>

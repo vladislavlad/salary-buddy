@@ -92,7 +92,7 @@ export function BonusForm({
             onSave({ id: initial?.id, date, amount, type });
           }}
         >
-          <Check className="w-3.5 h-3.5 mr-1" />
+          <Check className="w-3.5 h-3.5" />
           {isEdit ? "Сохранить" : "Добавить"}
         </Button>
       </div>

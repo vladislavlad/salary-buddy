@@ -59,7 +59,7 @@ export function SurchargeChangeForm({
             onSave({ id: initial?.id, effectiveDate: date, amount });
           }}
         >
-          <Check className="w-3.5 h-3.5 mr-1" />
+          <Check className="w-3.5 h-3.5" />
           {isEdit ? "Сохранить" : "Добавить"}
         </Button>
       </div>

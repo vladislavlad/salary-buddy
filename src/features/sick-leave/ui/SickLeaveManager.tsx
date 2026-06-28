@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Temporal } from "@js-temporal/polyfill";
 import { Plus, Info } from "lucide-react";
 import { Button } from "@/shared/ui/button";
@@ -21,6 +21,38 @@ export function SickLeaveManager() {
   } = useSickLeavesProvider();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
+
+  // Локальное строковое состояние инпута лимита дней – чтобы поле можно было
+  // очистить до пустого (число коммитим в настройки только при валидном вводе).
+  const [topUpDaysInput, setTopUpDaysInput] = useState<string>(
+    String(settings.topUpDaysLimitPerYear),
+  );
+
+  // Синхронизация при загрузке настроек из хранилища (внешнее изменение значения),
+  // не затирая то, что пользователь сейчас вводит (включая пустую строку).
+  useEffect(() => {
+    setTopUpDaysInput((prev) =>
+      parseInt(prev, 10) === settings.topUpDaysLimitPerYear
+        ? prev
+        : String(settings.topUpDaysLimitPerYear),
+    );
+  }, [settings.topUpDaysLimitPerYear]);
+
+  const handleTopUpDaysChange = (raw: string) => {
+    setTopUpDaysInput(raw);
+    const val = parseInt(raw, 10);
+    if (!isNaN(val) && val >= 1) {
+      updateSettings({ topUpDaysLimitPerYear: val });
+    }
+  };
+
+  // При потере фокуса с пустым/некорректным значением – возвращаем последнее валидное.
+  const handleTopUpDaysBlur = () => {
+    const val = parseInt(topUpDaysInput, 10);
+    if (isNaN(val) || val < 1) {
+      setTopUpDaysInput(String(settings.topUpDaysLimitPerYear));
+    }
+  };
 
   const sortedSickLeaves = [...sickLeaves].sort((a, b) =>
     Temporal.PlainDate.compare(a.startDate, b.startDate),
@@ -80,13 +112,9 @@ export function SickLeaveManager() {
             <Input
               type="number"
               min={1}
-              value={settings.topUpDaysLimitPerYear}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                if (!isNaN(val) && val >= 1) {
-                  updateSettings({ topUpDaysLimitPerYear: val });
-                }
-              }}
+              value={topUpDaysInput}
+              onChange={(e) => handleTopUpDaysChange(e.target.value)}
+              onBlur={handleTopUpDaysBlur}
             />
           </div>
         )}
@@ -119,7 +147,7 @@ export function SickLeaveManager() {
 
       {!addingNew ? (
         <Button onClick={() => setAddingNew(true)} className="w-full">
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="w-4 h-4" />
           Добавить
         </Button>
       ) : (
@@ -138,8 +166,8 @@ export function SickLeaveManager() {
         <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground">
           Больничный считается от среднего заработка за 2 предшествующих года (доход / 730).
-          Первые 3 дня болезни оплачивает работодатель, далее — СФР. Стаж определяет процент:{" "}
-          &lt;5 лет — 60%, 5–8 лет — 80%, 8+ лет — 100%.
+          Первые 3 дня болезни оплачивает работодатель, далее – СФР. Стаж определяет процент:{" "}
+          &lt;5 лет – 60%, 5–8 лет – 80%, 8+ лет – 100%.
         </p>
       </div>
     </div>

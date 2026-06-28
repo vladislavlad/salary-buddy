@@ -224,7 +224,7 @@ describe("sick-leave-topup", () => {
 
   it("доплата не генерируется для work-injury (СФР с 1 дня)", () => {
     // Доплата рассчитывается независимо от типа, но логика корректна:
-    // topUpPerDay = dailySalary - dailyBenefit, и если СДЗ * 100% > оклад/рабочие дни — доплаты нет.
+    // topUpPerDay = dailySalary - dailyBenefit, и если СДЗ * 100% > оклад/рабочие дни – доплаты нет.
     const settings: SickLeaveSettings = {
       enableTopUp: true,
       topUpDaysLimitPerYear: 30,

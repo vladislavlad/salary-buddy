@@ -44,7 +44,7 @@ function paymentsEqual(a: Payment[], b: Payment[]): boolean {
 
 /**
  * Накладывает fact из existing на пересчитанные платежи: если для sourceId
- * в existing есть факт — сохраняем его.
+ * в existing есть факт – сохраняем его.
  */
 function mergeFacts(computed: Payment[], existing: Payment[]): Payment[] {
   const factBySource = new Map<string, number>();
@@ -72,7 +72,7 @@ export class PaymentsApplicationService {
   async recalculate(input: PaymentCalculationInput): Promise<Payment[]> {
     const existing = await this.paymentsRepository.findAll();
 
-    // Source-данные ещё не загружены — не перезаписываем репозиторий.
+    // Source-данные ещё не загружены – не перезаписываем репозиторий.
     if (input.settings.salaryChanges.length === 0) return existing;
 
     const recalculated = mergeFacts(this.compute(input, existing), existing);
@@ -99,7 +99,7 @@ export class PaymentsApplicationService {
       p.id === paymentId ? { ...p, fact: factGross } : p,
     );
 
-    // Без input — только сохраняем факт, без пересчёта.
+    // Без input – только сохраняем факт, без пересчёта.
     if (!input) {
       await this.paymentsRepository.saveAll(updated);
       return updated;

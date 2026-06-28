@@ -13,7 +13,7 @@ export function MoneyInput({ id, value, onChange }: MoneyInputProps) {
   const [displayValue, setDisplayValue] = useState("");
   const isFocused = useRef(false);
 
-  // При потере фокуса — форматируем значение (копейки → строка с пробелами в рублях)
+  // При потере фокуса – форматируем значение (копейки → строка с пробелами в рублях)
   useEffect(() => {
     if (!isFocused.current && value > 0) {
       setDisplayValue(formatMoneyInput(Math.round(value / 100)));

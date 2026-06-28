@@ -8,5 +8,8 @@ dist
 *.iml
 .vscode/
 
+# Agents
+.claude
+
 # Logs
 *.log

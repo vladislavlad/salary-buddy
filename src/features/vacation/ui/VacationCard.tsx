@@ -28,7 +28,7 @@ function VacationRowContent({
     <div className="flex items-center justify-between group">
       <div className="min-w-0">
         <p className="font-medium">
-          {format(localToDate(vacation.startDate), "d MMMM", { locale: ru })} —{" "}
+          {format(localToDate(vacation.startDate), "d MMMM", { locale: ru })} –{" "}
           {lastDate
             ? format(localToDate(lastDate), "d MMMM yyyy", { locale: ru })
             : ""}

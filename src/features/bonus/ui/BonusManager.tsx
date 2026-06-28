@@ -74,7 +74,7 @@ export function BonusManager() {
 
       {!addingNew ? (
         <Button onClick={() => setAddingNew(true)} className="w-full">
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="w-4 h-4" />
           Добавить
         </Button>
       ) : (

@@ -23,7 +23,7 @@ import { ExportDataSchema } from "@/shared/types/exportImport";
 
 const DEFAULT_SICK_LEAVE_SETTINGS: SickLeaveSettings = {
   enableTopUp: false,
-  topUpDaysLimitPerYear: 30,
+  topUpDaysLimitPerYear: 20,
 };
 
 /**

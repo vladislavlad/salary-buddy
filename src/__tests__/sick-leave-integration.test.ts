@@ -42,7 +42,7 @@ describe("sick-leave-integration", () => {
 
   describe("вычет из зарплаты (absenceDaysSet)", () => {
     it("дни больничного исключаются из расчёта аванса/зарплаты", () => {
-      // Июнь 2026: 1-7 июня — больничный (5 рабочих дней + 2 выходных)
+      // Июнь 2026: 1-7 июня – больничный (5 рабочих дней + 2 выходных)
       const sl = createSickLeave(
         "sick:2026:01",
         ld(2026, 6, 1),
@@ -209,7 +209,7 @@ describe("sick-leave-integration", () => {
         expect(topupPayment.ndfl).toBeGreaterThan(0);
         expect(topupPayment.net).toBe(topupPayment.gross - topupPayment.ndfl);
       } else {
-        // Доплата может быть 0 если dailyBenefit >= dailySalary — тест корректно пропускается
+        // Доплата может быть 0 если dailyBenefit >= dailySalary – тест корректно пропускается
         expect(true).toBe(true);
       }
     });
@@ -242,7 +242,7 @@ describe("sick-leave-integration", () => {
       const sfrIdx = sorted.findIndex((p) => p.type === "sick-leave-sfr");
       expect(sfrIdx).toBeGreaterThanOrEqual(0);
 
-      // Если есть платёж после SFR — его yearToDateGross НЕ должен включать gross SFR
+      // Если есть платёж после SFR – его yearToDateGross НЕ должен включать gross SFR
       if (sfrIdx < sorted.length - 1) {
         const nextPayment = sorted[sfrIdx + 1]!;
         // yearToDateGross следующего платежа = accumulated income до него + свой gross
@@ -254,7 +254,7 @@ describe("sick-leave-integration", () => {
 
         expect(nextPayment.yearToDateGross).toBeLessThanOrEqual(incomeUpToNext);
       } else {
-        // SFR — последний платёж; проверяем, что предыдущий не включает SFR gross
+        // SFR – последний платёж; проверяем, что предыдущий не включает SFR gross
         const sfrPayment = sorted[sfrIdx]!;
         expect(sfrPayment.ndfl).toBe(0);
       }
@@ -341,6 +341,141 @@ describe("sick-leave-integration", () => {
 
       expect(payments.find((p) => p.type === "sick-leave")).toBeUndefined();
       expect(payments.find((p) => p.type === "sick-leave-sfr")).toBeDefined();
+    });
+  });
+
+  describe("даты выплат работодателя (по половинам месяца)", () => {
+    it("больничный в первой половине → пособие работодателя в день аванса", () => {
+      // 1-5 июня: дни 1-3 (работодатель) в первой половине месяца.
+      const sl = createSickLeave(
+        "sick:2026:01",
+        ld(2026, 6, 1),
+        5,
+        "illness",
+        "8plus",
+      );
+
+      const payments = calculateAll({
+        settings: createBaseSettings(2026),
+        bonuses: [],
+        surcharges: [],
+        vacations: [],
+        sickLeaves: [sl],
+        sickLeaveSettings,
+        calendarsByYear: calendars,
+      });
+
+      const juneAdvance = payments.find(
+        (p) => p.type === "advance" && p.month === 6 && p.date.year === 2026,
+      )!;
+      const employer = payments.filter((p) => p.type === "sick-leave");
+
+      // Все дни в первой половине → одна выплата работодателя в день аванса.
+      expect(employer).toHaveLength(1);
+      expect(employer[0]!.date.toString()).toBe(juneAdvance.date.toString());
+    });
+
+    it("больничный на обе половины → пособие работодателя разносится на аванс и зарплату", () => {
+      // 14-16 июня: дни 14,15 (1-я половина → аванс) + 16 (2-я половина → зарплата).
+      const sl = createSickLeave(
+        "sick:2026:01",
+        ld(2026, 6, 14),
+        3,
+        "illness",
+        "8plus",
+      );
+
+      const payments = calculateAll({
+        settings: createBaseSettings(2026),
+        bonuses: [],
+        surcharges: [],
+        vacations: [],
+        sickLeaves: [sl],
+        sickLeaveSettings,
+        calendarsByYear: calendars,
+      });
+
+      const juneAdvance = payments.find(
+        (p) => p.type === "advance" && p.month === 6 && p.date.year === 2026,
+      )!;
+      const juneSalary = payments.find(
+        (p) => p.type === "salary" && p.month === 6 && p.date.year === 2026,
+      )!;
+      const employer = payments.filter((p) => p.type === "sick-leave");
+
+      expect(employer).toHaveLength(2);
+      const grossByDate = new Map(
+        employer.map((e) => [e.date.toString(), e.gross]),
+      );
+      // 2 дня в день аванса, 1 день в день зарплаты → отношение 2:1.
+      expect(grossByDate.get(juneAdvance.date.toString())).toBe(
+        2 * grossByDate.get(juneSalary.date.toString())!,
+      );
+    });
+
+    it("доплата работодателя разносится на аванс и зарплату по половинам месяца", () => {
+      // 10-20 июня: рабочие дни в обеих половинах месяца.
+      const sl = createSickLeave(
+        "sick:2026:01",
+        ld(2026, 6, 10),
+        11,
+        "illness",
+        "8plus",
+      );
+
+      const payments = calculateAll({
+        settings: createBaseSettings(2026),
+        bonuses: [],
+        surcharges: [],
+        vacations: [],
+        sickLeaves: [sl],
+        sickLeaveSettings: { enableTopUp: true, topUpDaysLimitPerYear: 30 },
+        calendarsByYear: calendars,
+      });
+
+      const juneAdvance = payments.find(
+        (p) => p.type === "advance" && p.month === 6 && p.date.year === 2026,
+      )!;
+      const juneSalary = payments.find(
+        (p) => p.type === "salary" && p.month === 6 && p.date.year === 2026,
+      )!;
+      const topupDates = new Set(
+        payments
+          .filter((p) => p.type === "sick-leave-topup")
+          .map((p) => p.date.toString()),
+      );
+
+      expect(topupDates.has(juneAdvance.date.toString())).toBe(true);
+      expect(topupDates.has(juneSalary.date.toString())).toBe(true);
+    });
+
+    it("СФР-часть платится отдельно (рабочий день перед концом периода)", () => {
+      // 1-7 июня (illness): СФР за дни 4-7. endDate=07.06 (сб) → 05.06.
+      const sl = createSickLeave(
+        "sick:2026:01",
+        ld(2026, 6, 1),
+        7,
+        "illness",
+        "8plus",
+      );
+
+      const payments = calculateAll({
+        settings: createBaseSettings(2026),
+        bonuses: [],
+        surcharges: [],
+        vacations: [],
+        sickLeaves: [sl],
+        sickLeaveSettings,
+        calendarsByYear: calendars,
+      });
+
+      const sfr = payments.find((p) => p.type === "sick-leave-sfr")!;
+      const juneAdvance = payments.find(
+        (p) => p.type === "advance" && p.month === 6 && p.date.year === 2026,
+      )!;
+      // СФР дата не совпадает с днём аванса – отдельная логика выплаты.
+      expect(sfr.date.toString()).toBe("2026-06-05");
+      expect(sfr.date.toString()).not.toBe(juneAdvance.date.toString());
     });
   });
 });

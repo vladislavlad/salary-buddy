@@ -4,7 +4,7 @@ import { LocalDateSchema } from "./local-date";
 
 const MAX_PAYMENT_DAY = 28;
 
-// Изменение оклада (запись в списке) — amount хранится в копейках.
+// Изменение оклада (запись в списке) – amount хранится в копейках.
 export const SalaryChangeSchema = z.object({
   id: z.string(),
   effectiveDate: LocalDateSchema, // дата начала действия оклада

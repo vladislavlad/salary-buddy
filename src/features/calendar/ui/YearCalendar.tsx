@@ -52,7 +52,22 @@ const PAYMENT_PRIORITY: Record<string, number> = {
   salary: 1,
   surcharge: 1,
   vacation: 2,
+  "sick-leave": 2,
+  "sick-leave-sfr": 2,
+  "sick-leave-topup": 2,
   bonus: 3,
+};
+
+// Суффикс CSS-переменной цвета ячейки по типу выплаты (--pay-<suffix>-bg/-text).
+const PAY_VAR_SUFFIX: Record<string, string> = {
+  advance: "salary",
+  salary: "salary",
+  surcharge: "salary",
+  vacation: "vacation",
+  bonus: "bonus",
+  "sick-leave": "sickleave",
+  "sick-leave-sfr": "sickleave",
+  "sick-leave-topup": "sickleave",
 };
 
 function getHighestPriority(payments: DayPayment[]): string {
@@ -80,6 +95,8 @@ function getPaymentLabel(type: string): string {
       return "Отпускные";
     case "bonus":
       return "Премия";
+    case "sick-leave":
+      return "Больничный (работодатель)";
     case "sick-leave-sfr":
       return "Больничный (СФР)";
     case "sick-leave-topup":
@@ -100,6 +117,7 @@ const PAYMENT_COLOR_VAR: Record<string, string> = {
   surcharge: "var(--pay-salary-bg)",
   vacation: "var(--pay-vacation-bg)",
   bonus: "var(--pay-bonus-bg)",
+  "sick-leave": "var(--pay-sickleave-bg)",
   "sick-leave-sfr": "var(--pay-sickleave-bg)",
   "sick-leave-topup": "var(--pay-sickleave-bg)",
 };
@@ -201,6 +219,7 @@ interface YearCalendarProps {
   year: number;
   payments: Payment[];
   vacationDays: Map<string, boolean>;
+  sickLeaveDays: Map<string, boolean>;
   calendarData: CalendarData | null;
 }
 
@@ -208,6 +227,7 @@ export function YearCalendar({
   year,
   payments,
   vacationDays,
+  sickLeaveDays,
   calendarData,
 }: YearCalendarProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -253,6 +273,7 @@ export function YearCalendar({
             monthName={monthName}
             combinedMap={combinedMap}
             vacationDays={vacationDays}
+            sickLeaveDays={sickLeaveDays}
             calendarData={calendarData}
             cellRefs={cellRefs.current}
             onClickCell={(key) => setSelectedKey(key)}
@@ -300,7 +321,7 @@ function ItemPopover({
       editValue.replace(/[^0-9.,]/g, "").replace(",", "."),
     );
     const validNet = !isNaN(netValRub) && netValRub > 0;
-    // Для доплаты grossFromNet не нужен — на руки = gross (НДФЛ = 0)
+    // Для доплаты grossFromNet не нужен – на руки = gross (НДФЛ = 0)
     if (payment.type === "surcharge") {
       return {
         payment,
@@ -309,7 +330,7 @@ function ItemPopover({
         isSurcharge: true as const,
       };
     }
-    // priorYtdGross уже в копейках (Payment.gross и Payment.yearToDateGross — копейки)
+    // priorYtdGross уже в копейках (Payment.gross и Payment.yearToDateGross – копейки)
     const priorYtdGrossKop = payment.yearToDateGross - payment.gross;
     const year = payment.date.year;
     return {
@@ -322,7 +343,7 @@ function ItemPopover({
     };
   }, [editingId, payments, editValue]);
 
-  // Превью gross при вводе net (для доплаты — нет превью, т.к. на руки = gross) — копейки
+  // Превью gross при вводе net (для доплаты – нет превью, т.к. на руки = gross) – копейки
   const editPreviewGrossKop = useMemo(() => {
     if (
       !editingContext ||
@@ -367,7 +388,7 @@ function ItemPopover({
         if (fitsAbove) {
           top = aboveTop;
         } else {
-          // Не влазит ниоткуда — выбираем сторону с большим свободным местом
+          // Не влазит ниоткуда – выбираем сторону с большим свободным местом
           const spaceBelow = viewportH - rect.bottom - POPOVER_MARGIN;
           const spaceAbove = rect.top - POPOVER_MARGIN;
           if (spaceBelow >= spaceAbove) {
@@ -384,7 +405,7 @@ function ItemPopover({
       setPosition({ top, left });
     }
 
-    // Первый проход — с оценочной высотой, второй — после рендера с реальной
+    // Первый проход – с оценочной высотой, второй – после рендера с реальной
     updatePosition();
     const raf = requestAnimationFrame(updatePosition);
     window.addEventListener("resize", updatePosition);
@@ -403,7 +424,7 @@ function ItemPopover({
   }, [editingId]);
 
   // Закрытие по клику вне поповера. Используем mousedown на document вместо
-  // полноэкранного оверлея — иначе оверлей перехватывал бы клики по ячейкам
+  // полноэкранного оверлея – иначе оверлей перехватывал бы клики по ячейкам
   // календаря, и повторный клик не открывал бы поповер на другой ячейке.
   useEffect(() => {
     function handlePointerDown(e: MouseEvent) {
@@ -418,7 +439,7 @@ function ItemPopover({
 
   const startEdit = useCallback((payment: Payment) => {
     setEditingId(payment.id);
-    // При редактировании показываем текущую сумму на руки в рублях (net — копейки → рубли)
+    // При редактировании показываем текущую сумму на руки в рублях (net – копейки → рубли)
     setEditValue(
       payment.fact != null ? String(Math.round(payment.net / 100)) : "",
     );
@@ -430,7 +451,7 @@ function ItemPopover({
       setEditValue("");
       return;
     }
-    // Для доплаты: на руки = gross (НДФЛ = 0), не нужен обратный расчёт — копейки
+    // Для доплаты: на руки = gross (НДФЛ = 0), не нужен обратный расчёт – копейки
     if (editingContext.isSurcharge) {
       setFact(editingContext.payment.id, editingContext.roundedNetKop);
       setEditingId(null);
@@ -598,6 +619,7 @@ interface MonthGridProps {
   monthName: string;
   combinedMap: Map<string, DayPayment[]>;
   vacationDays: Map<string, boolean>;
+  sickLeaveDays: Map<string, boolean>;
   calendarData: CalendarData | null;
   cellRefs: Map<string, HTMLDivElement>;
   onClickCell: (key: string) => void;
@@ -609,6 +631,7 @@ function MonthGrid({
   monthName,
   combinedMap,
   vacationDays,
+  sickLeaveDays,
   calendarData,
   cellRefs,
   onClickCell,
@@ -641,10 +664,14 @@ function MonthGrid({
   );
 
   const vacationDateSet = new Set<string>();
+  const sickDateSet = new Set<string>();
   for (let d = 1; d <= daysInMonth; d++) {
     const key = dateToKey(localDate(year, month + 1, d));
     if (vacationDays.has(key)) {
       vacationDateSet.add(key);
+    }
+    if (sickLeaveDays.has(key)) {
+      sickDateSet.add(key);
     }
   }
 
@@ -695,19 +722,26 @@ function MonthGrid({
               d === daysInMonth || !vacationDateSet.has(nextKey);
           }
 
+          // Отпуск имеет приоритет над больничным при пересечении дат.
+          const isSickDay = !isVacationDay && sickDateSet.has(dateKey);
+          let sickFirstInSeries = false;
+          let sickLastInSeries = false;
+          if (isSickDay) {
+            const d = day.day;
+            const prevKey = dateToKey(day.subtract({ days: 1 }));
+            const nextKey = dateToKey(day.add({ days: 1 }));
+            sickFirstInSeries = !sickDateSet.has(prevKey);
+            sickLastInSeries = d === daysInMonth || !sickDateSet.has(nextKey);
+          }
+
           const stripeStyle =
             hasItem && paymentCount > 1
               ? getStripeStyle(dayPayments!.map((p) => p.type))
               : undefined;
           const highestType = hasItem ? getHighestPriority(dayPayments!) : null;
 
-          // Inline style для цветов ячеек — берёт CSS-переменные из темы
-          const payVarSuffix =
-            highestType === "bonus"
-              ? "bonus"
-              : highestType === "vacation"
-                ? "vacation"
-                : "salary";
+          // Inline style для цветов ячеек – берёт CSS-переменные из темы
+          const payVarSuffix = PAY_VAR_SUFFIX[highestType ?? ""] ?? "salary";
 
           const cellPayStyle: React.CSSProperties | undefined =
             isCurrentMonth && hasItem
@@ -723,6 +757,13 @@ function MonthGrid({
             isCurrentMonth && !hasItem && isVacationDay
               ? {
                   backgroundColor: "var(--vac-day-bg)",
+                }
+              : undefined;
+
+          const cellSickStyle: React.CSSProperties | undefined =
+            isCurrentMonth && !hasItem && isSickDay
+              ? {
+                  backgroundColor: "var(--sick-day-bg)",
                 }
               : undefined;
 
@@ -749,8 +790,22 @@ function MonthGrid({
                 "rounded-none": !vacFirstInSeries && !vacLastInSeries,
               }),
             isCurrentMonth &&
+              !isTodayFlag &&
+              isSickDay &&
+              cn({
+                "text-red-500 dark:text-red-400/70":
+                  calendarData && isDayOff(day, calendarData),
+                "rounded-md": sickFirstInSeries && sickLastInSeries,
+                "rounded-l-md rounded-r-none":
+                  sickFirstInSeries && !sickLastInSeries,
+                "rounded-r-md rounded-l-none":
+                  !sickFirstInSeries && sickLastInSeries,
+                "rounded-none": !sickFirstInSeries && !sickLastInSeries,
+              }),
+            isCurrentMonth &&
               !hasItem &&
               !isVacationDay &&
+              !isSickDay &&
               calendarData &&
               isDayOff(day, calendarData) &&
               "text-red-500 dark:text-red-400/70",
@@ -760,7 +815,9 @@ function MonthGrid({
             ? formatCurrency(dayPayments!.reduce((sum, p) => sum + p.net, 0))
             : isVacationDay
               ? "Отпуск"
-              : "";
+              : isSickDay
+                ? "Больничный"
+                : "";
 
           const cellContent = (
             <div
@@ -776,13 +833,14 @@ function MonthGrid({
               style={{
                 fontSize: "var(--cal-text)",
                 ...cellVacStyle,
+                ...cellSickStyle,
                 ...cellPayStyle,
                 ...(stripeStyle ?? {}),
               }}
               ref={(el) => {
                 // Ref для якоря поповера принадлежит только ячейке своего
                 // месяца. «Перетекающие» дни соседних месяцев (та же дата в
-                // другой сетке) не должны трогать cellRefs — иначе они стирают
+                // другой сетке) не должны трогать cellRefs – иначе они стирают
                 // ref настоящей ячейки (баг с платежами на краю месяца).
                 if (!isCurrentMonth) return;
                 if (!hasItem || !el) {

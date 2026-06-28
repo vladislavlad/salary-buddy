@@ -34,22 +34,22 @@
     --shadow-popover:
       0 2px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05);
 
-    /* Payment cell colors — salary/advance */
+    /* Payment cell colors – salary/advance */
     --pay-salary-bg: #dcfce7;
     --pay-salary-border: #bbf7d0;
     --pay-salary-text: #166534;
 
-    /* Payment cell colors — vacation pay */
+    /* Payment cell colors – vacation pay */
     --pay-vacation-bg: #f3e8ff;
     --pay-vacation-border: #e9d5ff;
     --pay-vacation-text: #6b21a8;
 
-    /* Payment cell colors — bonus */
+    /* Payment cell colors – bonus */
     --pay-bonus-bg: #dbeafe;
     --pay-bonus-border: #bfdbfe;
     --pay-bonus-text: #1e40af;
 
-    /* Payment cell colors — sick leave */
+    /* Payment cell colors – sick leave */
     --pay-sickleave-bg: #ffedd5;
     --pay-sickleave-border: #fed7aa;
     --pay-sickleave-text: #9a3412;
@@ -57,6 +57,10 @@
     /* Vacation day */
     --vac-day-bg: #e5e7eb;
     --vac-day-border: #d1d5db;
+
+    /* Sick leave day */
+    --sick-day-bg: #f1e7e0;
+    --sick-day-border: #e4d6cb;
   }
 
   .dark {
@@ -90,22 +94,22 @@
     --shadow-popover:
       0 2px 6px rgba(255, 255, 255, 0.04), 0 1px 3px rgba(255, 255, 255, 0.02);
 
-    /* Payment cell colors — salary/advance */
+    /* Payment cell colors – salary/advance */
     --pay-salary-bg: rgba(4, 120, 57, 0.4);
     --pay-salary-border: rgba(4, 120, 57, 0.6);
     --pay-salary-text: #86efac;
 
-    /* Payment cell colors — vacation pay */
+    /* Payment cell colors – vacation pay */
     --pay-vacation-bg: rgba(108, 43, 217, 0.4);
     --pay-vacation-border: rgba(108, 43, 217, 0.6);
     --pay-vacation-text: #d8b4fe;
 
-    /* Payment cell colors — bonus */
+    /* Payment cell colors – bonus */
     --pay-bonus-bg: rgba(30, 64, 175, 0.5);
     --pay-bonus-border: rgba(59, 130, 246, 0.7);
     --pay-bonus-text: #bfdbfe;
 
-    /* Payment cell colors — sick leave */
+    /* Payment cell colors – sick leave */
     --pay-sickleave-bg: rgba(154, 52, 18, 0.4);
     --pay-sickleave-border: rgba(194, 65, 12, 0.6);
     --pay-sickleave-text: #fed7aa;
@@ -113,6 +117,10 @@
     /* Vacation day */
     --vac-day-bg: rgba(82, 82, 91, 0.5);
     --vac-day-border: rgba(113, 113, 122, 0.6);
+
+    /* Sick leave day */
+    --sick-day-bg: rgba(168, 124, 96, 0.22);
+    --sick-day-border: rgba(180, 140, 112, 0.4);
   }
 }
 
@@ -125,7 +133,7 @@
   }
 }
 
-/* Card shadow — uses CSS variable for light/dark theme */
+/* Card shadow – uses CSS variable for light/dark theme */
 .card-shadow {
   box-shadow: var(--shadow-card);
 }
@@ -134,7 +142,7 @@
   box-shadow: var(--shadow-popover);
 }
 
-/* Custom scrollbars — outside @layer to ensure highest specificity */
+/* Custom scrollbars – outside @layer to ensure highest specificity */
 .calendar-scroll::-webkit-scrollbar,
 .sidebar-scroll::-webkit-scrollbar {
   width: 8px;
@@ -233,7 +241,7 @@
   }
 }
 
-/* Stripe cells — multi-payment background with dark theme support */
+/* Stripe cells – multi-payment background with dark theme support */
 .calendar-stripe-cell {
   background-image: var(--stripe-gradient);
 }

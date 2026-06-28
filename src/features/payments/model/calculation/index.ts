@@ -13,7 +13,7 @@ import {
   countWorkdaysBack,
 } from "@/features/calendar/model/calendar";
 import { calculateNdflForPayment } from "../ndfl";
-import type { CalculateAllInput, RawEvent } from "./types";
+import type { CalculateAllInput, RawEvent, MonthPaymentDates } from "./types";
 import { sortSalaryChanges, getSalaryForDate } from "./salary";
 import { sortSurchargeChanges, calculatePeriodSurcharge } from "./surcharge";
 import {
@@ -55,6 +55,10 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
   const maxYear = Math.max(lastChangeYear, MAX_DISPLAY_YEAR);
 
   const events: RawEvent[] = [];
+
+  // Даты выплаты аванса/зарплаты по рабочим месяцам – для размещения выплат
+  // работодателя по больничному (дни 1-15 → аванс, 16+ → зарплата).
+  const paymentDatesByMonth = new Map<string, MonthPaymentDates>();
 
   for (let year = minYear; year <= maxYear; year++) {
     const calendarData = calendarsByYear.get(year) ?? null;
@@ -140,7 +144,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
         sortedSurchargeChanges,
       );
 
-      // Определяем даты выплат — advancePaymentDay может быть больше daysInMonth
+      // Определяем даты выплат – advancePaymentDay может быть больше daysInMonth
       const daysInAdvanceMonth = ld(year, month, 1).daysInMonth;
       const advanceDay = Math.min(
         settings.advancePaymentDay,
@@ -153,7 +157,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
         adjustedAdvance = findPreviousWorkday(advanceDate, calendarData);
       }
 
-      // В декабре — зарплата за 1 рабочий день до последнего рабочего дня месяца
+      // В декабре – зарплата за 1 рабочий день до последнего рабочего дня месяца
       let salaryDate: LocalDate;
       if (month === 12) {
         const monthEnd = ld(year, 12, ld(year, 12, 1).daysInMonth);
@@ -169,6 +173,11 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
       if (salaryInYear) {
         adjustedSalary = findPreviousWorkday(salaryDate, calendarData);
       }
+
+      paymentDatesByMonth.set(`${year}-${String(month).padStart(2, "0")}`, {
+        advanceDate: adjustedAdvance,
+        salaryDate: adjustedSalary,
+      });
 
       if (!advanceInYear && !salaryInYear) continue;
 
@@ -187,7 +196,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
         sortedChanges,
       );
 
-      // Месяц начисления — рабочий месяц (year, month), независимо от того,
+      // Месяц начисления – рабочий месяц (year, month), независимо от того,
       // в каком месяце фактически выплачены аванс/зарплата.
       const accrualDate = ld(year, month, 1);
 
@@ -251,7 +260,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
     }
   }
 
-  // Карта фактов из существующих платежей — учитывается в доходе для отпускных и НДФЛ
+  // Карта фактов из существующих платежей – учитывается в доходе для отпускных и НДФЛ
   const factBySource = new Map<string, number>();
   for (const p of existingPayments) {
     if (p.fact !== undefined) {
@@ -259,14 +268,14 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
     }
   }
 
-  // Итеративный расчёт отпускных — до стабилизации (max 5 итераций)
+  // Итеративный расчёт отпускных – до стабилизации (max 5 итераций)
   const nonVacationEvents = events.filter((e) => e.type !== "vacation");
 
   for (let iter = 0; iter < 5; iter++) {
     const currentVacationEvents = events.filter((e) => e.type === "vacation");
     const allCurrentEvents = [...nonVacationEvents, ...currentVacationEvents];
 
-    // Доход для отпускных строим ТОЛЬКО из свежесгенерированных событий —
+    // Доход для отпускных строим ТОЛЬКО из свежесгенерированных событий –
     // конкатенация с existingPayments приводила бы к двойному учёту тех же
     // зарплат/авансов/бонусов/надбавок. Факт переносится через factBySource.
     // Доход учитывается по месяцу начисления (accrualDate), а не по дате выплаты.
@@ -347,7 +356,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
     if (stabilized) break;
   }
 
-  // Расчёт больничных — после стабилизации отпускных.
+  // Расчёт больничных – после стабилизации отпускных.
   const nonSickLeaveEvents = events.filter(
     (e) => !e.type.startsWith("sick-leave"),
   );
@@ -368,12 +377,13 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
       // Берём оклад на дату начала первого больничного (для fallback СДЗ).
       ? getSalaryForDate(sickLeaves[0]!.startDate, sortedChanges)
       : 0,
+    paymentDatesByMonth,
   );
 
   events.length = 0;
   events.push(...nonSickLeaveEvents, ...sickLeaveEvents);
 
-  // Если есть recalcFrom — сохраняем платежи до этой даты из existingPayments
+  // Если есть recalcFrom – сохраняем платежи до этой даты из existingPayments
   let preservedPreRecalc: Payment[] = [];
   let initialAccumulatedIncomeKop = 0;
   let startYear = minYear - 1;
@@ -428,7 +438,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
       continue;
     }
 
-    // СФР часть больничного — без НДФЛ (СФР удержит самостоятельно).
+    // СФР часть больничного – без НДФЛ (СФР удержит самостоятельно).
     if (event.type === "sick-leave-sfr") {
       recalculatedPayments.push({
         id: generatePaymentId(event.date, idCounter),

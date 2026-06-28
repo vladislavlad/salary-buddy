@@ -1,4 +1,4 @@
-# TODO — Salary Buddy
+# TODO – Salary Buddy
 
 ## Пересекающиеся периоды больничного и отпуска
 

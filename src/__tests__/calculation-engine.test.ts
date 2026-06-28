@@ -56,7 +56,7 @@ describe("calculation-engine", () => {
     expect(totalGrossKop).toBeCloseTo(salaryAmountKop, -4);
 
     // Считаем рабочие дни вручную для проверки пропорций
-    // Июль 2025: Пн=1, Сб=5,12,19,26, Вс=6,13,20,27 — без праздников
+    // Июль 2025: Пн=1, Сб=5,12,19,26, Вс=6,13,20,27 – без праздников
     const workdaysFirstHalf = [1, 2, 3, 4, 7, 8, 9, 10, 11, 14, 15].length; // 11
     const workdaysSecondHalf = [16, 17, 18, 21, 22, 23, 24, 25, 28, 29, 30, 31]
       .length; // 12

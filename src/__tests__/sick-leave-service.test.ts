@@ -176,7 +176,7 @@ describe("sick-leave-service", () => {
   it("dates: включает выходные и праздники (календарные дни)", async () => {
     const service = createService(loadCalendars(2026));
 
-    // 1 июня — суббота, 7 дней должны включать ВСЕ календарные дни
+    // 1 июня – суббота, 7 дней должны включать ВСЕ календарные дни
     const result = await service.add({
       startDate: localDate(2026, 6, 1),
       calendarDays: 7,

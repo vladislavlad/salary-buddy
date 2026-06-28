@@ -52,12 +52,12 @@ export function DatePicker({
     let top = triggerRect.bottom + 8;
     let left = triggerRect.left;
 
-    // Если не влезает снизу — показываем над кнопкой
+    // Если не влезает снизу – показываем над кнопкой
     if (top + POPUP_HEIGHT > viewportH) {
       top = triggerRect.top - POPUP_HEIGHT - 4;
     }
 
-    // Если не влезает справа — сдвигаем влево
+    // Если не влезает справа – сдвигаем влево
     if (left + POPUP_WIDTH > viewportW) {
       left = viewportW - POPUP_WIDTH - 16;
     }

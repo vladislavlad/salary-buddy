@@ -2,8 +2,32 @@ import type { CalendarData, SickLeave, SickLeaveSettings } from "@/shared/types"
 import type { LocalDate } from "@/shared/types/local-date";
 import { localDate as ld } from "@/shared/types/local-date";
 import { findPreviousWorkday, isDayOff } from "@/features/calendar/model/calendar";
-import type { RawEvent } from "./types";
+import type { RawEvent, MonthPaymentDates } from "./types";
 import type { IncomeRecord } from "./vacation";
+
+// Половина месяца для выплат работодателя: "a" – дни 1-15 (аванс), "b" – дни 16+ (зарплата).
+type MonthHalf = "a" | "b";
+
+function monthHalf(d: LocalDate): MonthHalf {
+  return d.day <= 15 ? "a" : "b";
+}
+
+// Дата выплаты работодателя за день больничного: дни 1-15 платятся в день аванса,
+// дни 16+ – в день зарплаты. Если даты выплат за месяц неизвестны (нет в карте) –
+// откатываемся к дате выплаты по больничному (рабочий день перед концом периода).
+function resolveEmployerPayDate(
+  year: number,
+  month: number,
+  half: MonthHalf,
+  fallback: LocalDate,
+  paymentDatesByMonth: Map<string, MonthPaymentDates>,
+): LocalDate {
+  const entry = paymentDatesByMonth.get(
+    `${year}-${String(month).padStart(2, "0")}`,
+  );
+  const target = half === "a" ? entry?.advanceDate : entry?.salaryDate;
+  return target ?? fallback;
+}
 
 // Лимиты СДЗ 2026 (копейки)
 const MAX_AVG_DAILY_EARNINGS_KOP = 682_740; // 6 827,40 ₽/день
@@ -82,6 +106,7 @@ export function calculateSickLeavePayments(
   calendarsByYear: Map<number, CalendarData>,
   incomeRecords: IncomeRecord[],
   currentSalaryKop: number,
+  paymentDatesByMonth: Map<string, MonthPaymentDates> = new Map(),
 ): RawEvent[] {
   if (sickLeaves.length === 0) return [];
 
@@ -160,33 +185,43 @@ export function calculateSickLeavePayments(
     for (const ymKey of sortedYMs) {
       const datesInChunk = datesByYM.get(ymKey)!;
       const year = datesInChunk[0]!.year;
+      const month = datesInChunk[0]!.month;
       const calendarData = calendarsByYear.get(year);
       if (!calendarData) continue;
 
       const endDate = datesInChunk[datesInChunk.length - 1]!;
       const paymentDate = findPreviousWorkday(endDate, calendarData);
 
-      // Работодатель: пособие за дни 1-3 (только illness).
+      // Работодатель: пособие за дни 1-3 (только illness). Платится вместе с
+      // авансом/зарплатой → разносим по половинам месяца (1-15 → аванс, 16+ → зарплата).
       if (sl.reason === "illness") {
-        let employerDaysInChunk = 0;
+        const employerByHalf = new Map<MonthHalf, number>();
         for (let i = 0; i < datesInChunk.length; i++) {
-          if (globalDayIdx + i <= 3) employerDaysInChunk++;
-        }
-        if (employerDaysInChunk > 0) {
-          const employerGrossKop = Math.round(
-            dailyBenefitKop * employerDaysInChunk,
+          if (globalDayIdx + i > 3) break;
+          const half = monthHalf(datesInChunk[i]!);
+          employerByHalf.set(
+            half,
+            (employerByHalf.get(half) ?? 0) + dailyBenefitKop,
           );
+        }
+        for (const [half, grossKop] of employerByHalf) {
           events.push({
-            sourceId: `${sl.id}:emp:${ymKey}`,
-            date: paymentDate,
+            sourceId: `${sl.id}:emp:${ymKey}:${half}`,
+            date: resolveEmployerPayDate(
+              year,
+              month,
+              half,
+              paymentDate,
+              paymentDatesByMonth,
+            ),
             type: "sick-leave",
-            grossKop: employerGrossKop,
+            grossKop,
             salaryAmountKop: 0,
           });
         }
       }
 
-      // СФР часть — дни начиная с sfrStartDay.
+      // СФР часть – дни начиная с sfrStartDay.
       const sfrStartDay = sl.reason === "illness" ? 4 : 1;
 
       let sfrGrossKop = 0;
@@ -195,7 +230,7 @@ export function calculateSickLeavePayments(
         if (dayNum >= sfrStartDay) {
           let dayBenefit = dailyBenefitKop;
 
-          // Первые 10 дней оплачиваются по стажу, с 11-го — 50% от СДЗ (ст. 7 ФЗ-255).
+          // Первые 10 дней оплачиваются по стажу, с 11-го – 50% от СДЗ (ст. 7 ФЗ-255).
           if (sl.reason === "child-care-7to15" && dayNum > 10) {
             dayBenefit = Math.round(avgDailyEarningsKop * 0.5);
           }
@@ -221,11 +256,12 @@ export function calculateSickLeavePayments(
 
       globalDayIdx += datesInChunk.length;
 
-      // Доплата от работодателя — только за рабочие дни.
+      // Доплата от работодателя – только за рабочие дни. Платится вместе с
+      // авансом/зарплатой → разносим по половинам месяца (1-15 → аванс, 16+ → зарплата).
       if (settings.enableTopUp) {
         const topUpDays = allocatedTopUp.get(sl.id)?.get(ymKey) ?? 0;
         if (topUpDays > 0 && dailyBenefitKop > 0) {
-          let totalTopUpKop = 0;
+          const topUpByHalf = new Map<MonthHalf, number>();
 
           // Кэшируем рабочие дни по месяцам.
           const monthWorkdaysCache = new Map<string, number>();
@@ -259,15 +295,23 @@ export function calculateSickLeavePayments(
                 ? Math.round(currentSalaryKop / monthWorkdays)
                 : 0;
             const topUpPerDay = Math.max(0, dailySalaryKop - dailyBenefitKop);
-            totalTopUpKop += topUpPerDay;
+            const half = monthHalf(dayDate);
+            topUpByHalf.set(half, (topUpByHalf.get(half) ?? 0) + topUpPerDay);
           }
 
-          if (totalTopUpKop > 0) {
+          for (const [half, grossKop] of topUpByHalf) {
+            if (grossKop <= 0) continue;
             events.push({
-              sourceId: `${sl.id}:topup:${ymKey}`,
-              date: paymentDate,
+              sourceId: `${sl.id}:topup:${ymKey}:${half}`,
+              date: resolveEmployerPayDate(
+                year,
+                month,
+                half,
+                paymentDate,
+                paymentDatesByMonth,
+              ),
               type: "sick-leave-topup",
-              grossKop: totalTopUpKop,
+              grossKop,
               salaryAmountKop: 0,
             });
           }

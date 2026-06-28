@@ -31,7 +31,7 @@ export function divideRound(numerator: number, denominator: number): number {
 
 /**
  * Умножает сумму в копейках на процентную ставку и округляет до копейки.
- * rate — целое число процентов (13, 15, …).
+ * rate – целое число процентов (13, 15, …).
  */
 export function multiplyByPercent(amountKop: number, percent: number): number {
   return Math.round((amountKop * percent) / 100);

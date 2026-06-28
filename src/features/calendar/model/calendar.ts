@@ -22,7 +22,7 @@ export async function fetchCalendar(year: number): Promise<CalendarData> {
     throw new Error(`Не удалось загрузить календарь за ${year} год`);
   }
 
-  // API возвращает строку из цифр — по одной на каждый день года (365 или 366 символов)
+  // API возвращает строку из цифр – по одной на каждый день года (365 или 366 символов)
   const raw = await response.text();
   // Оставляем только цифры, убираем разделители и переносы строк
   const digits = raw.replace(/\D/g, "");

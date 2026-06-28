@@ -1,7 +1,7 @@
 import type { TaxBracketBreakdown } from "@/shared/types";
 import { multiplyByPercent } from "@/shared/lib/money";
 
-// Конфигурация НДФЛ по годам — пороги в копейках, ставки в %.
+// Конфигурация НДФЛ по годам – пороги в копейках, ставки в %.
 interface NdflYearConfig {
   brackets: [thresholdKop: number, ratePercent: number][];
 }
@@ -77,7 +77,7 @@ export function calculateNdflForPayment(
   );
   const totalNewTax = newBracketTaxes.reduce((sum, b) => sum + b.amount, 0);
 
-  // Разница по каждой ставке — это НДФЛ именно с этой выплаты
+  // Разница по каждой ставке – это НДФЛ именно с этой выплаты
   const allRates = new Set<number>();
   for (const b of newBracketTaxes) allRates.add(b.rate);
   for (const b of prevBracketTaxes) allRates.add(b.rate);

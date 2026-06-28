@@ -136,7 +136,7 @@ describe("computeVacationDates", () => {
 
       const dates = computeVacationDates(localDate(2025, 4, 28), 12, cal);
 
-      // 1 — праздник (код 8), пропускаем; paid = 2,3,4,5,6 → конец=06.05
+      // 1 – праздник (код 8), пропускаем; paid = 2,3,4,5,6 → конец=06.05
       expect(dates.map((d) => d.toString())).toEqual([
         "2025-04-28",
         "2025-04-29",
@@ -161,7 +161,7 @@ describe("computeVacationDates", () => {
 
       const dates = computeVacationDates(localDate(2024, 4, 22), 13, cal);
 
-      // 22-30 апр = 9 paid, 1 мая — праздник (пропуск), 2-5 мая = 4 paid → конец=05.05
+      // 22-30 апр = 9 paid, 1 мая – праздник (пропуск), 2-5 мая = 4 paid → конец=05.05
       expect(dates.map((d) => d.toString())).toEqual([
         "2024-04-22",
         "2024-04-23",
@@ -187,7 +187,7 @@ describe("computeVacationDates", () => {
 
       const dates = computeVacationDates(localDate(2024, 12, 30), 5, merged);
 
-      // 30 дек (paid), 31 дек (paid), 1-8 янв — праздники (пропуск), 9-11 = 3 paid
+      // 30 дек (paid), 31 дек (paid), 1-8 янв – праздники (пропуск), 9-11 = 3 paid
       expect(dates.map((d) => d.toString())).toEqual([
         "2024-12-30",
         "2024-12-31",
@@ -203,7 +203,7 @@ describe("computeVacationDates", () => {
 
       expect(isOfficialHoliday(localDate(2025, 1, 1), cal)).toBe(true);
 
-      // 1-8 янв — все праздники (код 8), первый непраздничный = 9 янв
+      // 1-8 янв – все праздники (код 8), первый непраздничный = 9 янв
       const dates = computeVacationDates(localDate(2025, 1, 1), 1, cal);
 
       expect(dates.map((d) => d.toString())).toEqual(["2025-01-09"]);

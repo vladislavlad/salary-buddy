@@ -1,22 +1,26 @@
 import { useMemo } from "react";
 import type { Payment, Vacation } from "@/shared/types";
+import type { SickLeave } from "@/shared/types/sick-leave";
 import { dateToKey } from "@/shared/lib/utils";
 
 export interface YearSummary {
   /** Карта "ключ даты → true" для дней отпуска в этом году (для подсветки в календаре). */
   vacationDays: Map<string, boolean>;
+  /** Карта "ключ даты → true" для дней больничного в этом году (для подсветки в календаре). */
+  sickLeaveDays: Map<string, boolean>;
   totalGross: number;
   totalNdfl: number;
   totalNet: number;
 }
 
 /**
- * Итоги за год: суммы из выплат (доплаты не учитываются) и дни отпуска для календаря.
+ * Итоги за год: суммы из выплат (доплаты не учитываются), дни отпуска и больничного для календаря.
  * `payments` ожидаются уже отфильтрованными по году.
  */
 export function useYearSummary(
   payments: Payment[],
   vacations: Vacation[],
+  sickLeaves: SickLeave[],
   year: number,
 ): YearSummary {
   const vacationDays = useMemo(() => {
@@ -30,6 +34,18 @@ export function useYearSummary(
     }
     return map;
   }, [vacations, year]);
+
+  const sickLeaveDays = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const sl of sickLeaves) {
+      for (const d of sl.dates) {
+        if (d.year === year) {
+          map.set(dateToKey(d), true);
+        }
+      }
+    }
+    return map;
+  }, [sickLeaves, year]);
 
   const totalGross = useMemo(
     () =>
@@ -48,6 +64,7 @@ export function useYearSummary(
 
   return {
     vacationDays,
+    sickLeaveDays,
     totalGross,
     totalNdfl,
     totalNet: totalGross - totalNdfl,

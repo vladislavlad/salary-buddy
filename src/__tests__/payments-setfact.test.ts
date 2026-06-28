@@ -80,7 +80,7 @@ describe("PaymentsApplicationService.setFact", () => {
   it("setFact на зарплате до отпуска пересчитывает оба отпуска", async () => {
     const { service, input } = setup();
 
-    // Шаг 1: первичный расчёт — оба отпуска без fact
+    // Шаг 1: первичный расчёт – оба отпуска без fact
     let payments = await service.recalculate(input);
     const juneGrossBefore = payments.find(
       (p) => p.sourceId === "vac-june" && p.type === "vacation",
@@ -89,7 +89,7 @@ describe("PaymentsApplicationService.setFact", () => {
       (p) => p.sourceId === "vac-july" && p.type === "vacation",
     )!.gross;
 
-    // Шаг 2: ставим fact на зарплату в расчётном периоде — на 50 000 ₽ больше плана
+    // Шаг 2: ставим fact на зарплату в расчётном периоде – на 50 000 ₽ больше плана
     const incomePayment = findIncomeBeforeVacation(payments);
     const FACT_GROSS = incomePayment.gross + 50_000 * 100;
     payments = await service.setFact(incomePayment.id, FACT_GROSS, input);
@@ -98,7 +98,7 @@ describe("PaymentsApplicationService.setFact", () => {
     const factedAfter = payments.find((p) => p.id === incomePayment.id);
     expect(factedAfter!.fact).toBe(FACT_GROSS);
 
-    // Шаг 4: оба отпуска пересчитались вверх — средний заработок вырос
+    // Шаг 4: оба отпуска пересчитались вверх – средний заработок вырос
     const juneVacAfter = payments.find(
       (p) => p.sourceId === "vac-june" && p.type === "vacation",
     )!;
@@ -133,7 +133,7 @@ describe("PaymentsApplicationService.setFact", () => {
   it("getSaved во время гонки загрузки не затирает facted-платежи", async () => {
     const { service, repository, input } = setup();
 
-    // Шаг 1: полный расчёт — отпускные платежи сохранены в репозитории.
+    // Шаг 1: полный расчёт – отпускные платежи сохранены в репозитории.
     let payments = await service.recalculate(input);
     const juneVac = payments.find(
       (p) => p.sourceId === "vac-june" && p.type === "vacation",
@@ -144,7 +144,7 @@ describe("PaymentsApplicationService.setFact", () => {
     const FACT_GROSS = juneVac.gross + 10_000 * 100;
     await service.setFact(juneVac.id, FACT_GROSS, input);
 
-    // Шаг 3: симулируем гонку загрузки — не все источники готовы.
+    // Шаг 3: симулируем гонку загрузки – не все источники готовы.
     // Провайдер вызывает getSaved() вместо recalculate(), пока sourcesReady=false.
     const returned = await service.getSaved();
 
@@ -159,7 +159,7 @@ describe("PaymentsApplicationService.setFact", () => {
     expect(factedInStore).toBeDefined();
     expect(factedInStore!.fact).toBe(FACT_GROSS);
 
-    // Шаг 4: источники догрузились — полный пересчёт сохраняет факт через mergeFacts.
+    // Шаг 4: источники догрузились – полный пересчёт сохраняет факт через mergeFacts.
     payments = await service.recalculate(input);
     const juneVacAfter = payments.find(
       (p) => p.sourceId === "vac-june" && p.type === "vacation",
@@ -178,7 +178,7 @@ describe("PaymentsApplicationService.setFact", () => {
     // Ставим fact
     await service.setFact(juneVacId, 50_000 * 100, input);
 
-    // Пересчитываем без setFact — fact должен сохраниться через mergeFacts
+    // Пересчитываем без setFact – fact должен сохраниться через mergeFacts
     payments = await service.recalculate(input);
     const juneVacAfter = payments.find(
       (p) => p.sourceId === "vac-june" && p.type === "vacation",
@@ -246,13 +246,13 @@ describe("PaymentsApplicationService.setFact", () => {
       calendars,
     });
 
-    // fact должен сохраниться в репозитории — пустой расчёт не перезаписал данные
+    // fact должен сохраниться в репозитории – пустой расчёт не перезаписал данные
     stored = await repository.findAll();
     const preserved = stored.find((p) => p.id === targetPayment.id)!;
     expect(preserved).toBeDefined();
     expect(preserved!.fact).toBe(99_999 * 100);
 
-    // 4. После загрузки salaries — пересчёт с фактом
+    // 4. После загрузки salaries – пересчёт с фактом
     const afterReload = await service.recalculate({
       settings: fullSettings,
       bonuses: [],
