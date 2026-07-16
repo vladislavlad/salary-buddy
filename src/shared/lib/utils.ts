@@ -14,4 +14,4 @@ export function dateToKey(date: LocalDate): string {
 }
 
 export const MIN_DISPLAY_YEAR = 2024;
-export const MAX_DISPLAY_YEAR = 2026;
+export const MAX_DISPLAY_YEAR = 2027;

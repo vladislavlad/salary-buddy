@@ -1,0 +1,49 @@
+schema: spec-driven
+
+context: |
+  Salary Buddy – React SPA для расчёта дат и сумм выплат в РФ.
+  Бэкенда нет, данные хранятся в localStorage.
+
+  ## Tech stack
+  - TypeScript (строгий, без any), React, TanStack Query, zod, shadcn/ui
+  - Temporal Polyfill для работы с датами
+  - date-fns для форматирования в UI
+
+  ## Архитектура по фичам
+  Каждая фича в src/features/<feature>/ слоями:
+    model – application services, providers/context, доменные правила
+    hooks – публичные React-хуки (без расчётной логики)
+    repository – интерфейс и localStorage implementation
+    ui – тонкие компоненты (данные через props/hooks)
+
+  shared/ – только то, что используется несколькими фичами:
+    lib – утилиты форматирования, денег, дат
+    repository – общий Repository и LocalStorageRepository
+    types – общие доменные типы и zod-схемы
+    ui – shadcn/ui primitives и общие компоненты
+
+  ## State management
+  Feature providers + localStorage persistence.
+  SalaryProvider, SalaryPaymentSettingsProvider, SurchargeProvider,
+  BonusesProvider, VacationsProvider, SickLeavesProvider,
+  CalendarProvider (TanStack Query), PaymentsProvider.
+
+  ## Конвенции кода
+  - Именованные экспорты по умолчанию
+  - camelCase – переменные/функции, PascalCase – компоненты/типы
+  - zod для валидации ввода и данных из persisted storage
+  - TanStack Query – только для асинхронной загрузки календарей
+  - Комментарии только на русском, только когда без них непонятно
+
+  ## Критические правила
+  - Salary и SalaryPaymentSettings – раздельные фичи, не склеивать
+  - SickLeave и SickLeaveSettings – раздельные фичи
+  - Payments – read model: рассчитываются, не редактируются (только fact)
+  - Расчётную логику (features/payments/model/calculation/) не менять без запроса
+
+rules:
+  spec:
+    - Описание на уровне бизнеса: что система делает, формулы, правила
+    - Не описывать реализацию в коде: типы TS, импорты, архитектуру слоёв
+    - Сценарии в формате GIVEN / WHEN / THEN
+    - Язык – русский

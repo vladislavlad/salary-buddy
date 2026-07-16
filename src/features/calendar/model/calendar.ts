@@ -1,42 +1,19 @@
 import type { CalendarData } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
-import { localDate as ld } from "@/shared/types/local-date";
 import { Temporal } from "@js-temporal/polyfill";
+import { generateFallbackCalendar } from "./calendar-fallback";
+import { isdayoffFetch } from "./isdayoff-fetch";
 
-const ISDAYOFF_BASE_URL = "https://isdayoff.ru/api/getdata";
-
-/** Разделяет официальные праздники (код 8) и выходные (код 1) в ответе API. */
-const SEPARATE_HOLIDAY_AND_WEEKEND = 1;
-
-/** Форматирует LocalDate в формат YYYYMMDD для API. */
+/** Форматирует LocalDate в формат YYYYMMDD. */
 function formatDate(ld: LocalDate): string {
   return ld.toString().replace(/-/g, "");
 }
 
-/** Загружает данные производственного календаря за год через API isdayoff.ru. */
+/** Загружает календарь за год: сначала isdayoff.ru, при отсутствии данных — fallback-генератор. */
 export async function fetchCalendar(year: number): Promise<CalendarData> {
-  const url = `${ISDAYOFF_BASE_URL}?year=${year}&cc=ru&holiday=${SEPARATE_HOLIDAY_AND_WEEKEND}`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Не удалось загрузить календарь за ${year} год`);
-  }
-
-  // API возвращает строку из цифр – по одной на каждый день года (365 или 366 символов)
-  const raw = await response.text();
-  // Оставляем только цифры, убираем разделители и переносы строк
-  const digits = raw.replace(/\D/g, "");
-  const data = new Map<string, number>();
-
-  for (let i = 0; i < digits.length && i < 366; i++) {
-    const date = ld(year, 1, 1).add({ days: i });
-    const code = parseInt(digits.charAt(i), 10);
-    if (!isNaN(code)) {
-      data.set(formatDate(date), code);
-    }
-  }
-
-  return data;
+  const apiData = await isdayoffFetch(year);
+  if (apiData) return apiData;
+  return generateFallbackCalendar(year);
 }
 
 /** Проверяет, является ли дата выходным или праздником (по данным API). */
