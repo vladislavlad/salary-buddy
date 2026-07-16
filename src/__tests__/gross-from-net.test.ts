@@ -176,7 +176,6 @@ describe("grossFromNet — обратный расчёт net → gross", () => {
     const priorYtd = 2_399_999 * 100 + 50;
 
     // Ищем net, для которого нет точного gross
-    let foundFallback = false;
     for (let netKop = 8400; netKop <= 8600; netKop++) {
       const grossKop = grossFromNet(netKop, priorYtd, 2026);
       const ndfl = calculateNdflForPayment(grossKop, priorYtd, 2026);
@@ -184,7 +183,6 @@ describe("grossFromNet — обратный расчёт net → gross", () => {
       if (grossKop - ndfl.ndfl !== netKop) {
         // Точного совпадения нет — проверяем погрешность фоллбэка
         expect(Math.abs((grossKop - ndfl.ndfl) - netKop)).toBeLessThanOrEqual(5);
-        foundFallback = true;
       }
     }
 
