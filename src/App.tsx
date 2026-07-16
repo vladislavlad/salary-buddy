@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  AlertTriangle,
   Plus,
   Settings2,
   Calendar as CalendarIcon,
@@ -21,6 +22,8 @@ import { YearNavigator } from "@/features/calendar/ui/YearNavigator";
 import { BonusManager } from "@/features/bonus/ui/BonusManager";
 import { SickLeaveManager } from "@/features/sick-leave/ui/SickLeaveManager";
 import { VacationManager } from "@/features/vacation/ui/VacationManager";
+import { useCalendar } from "@/features/calendar/hooks/useCalendar";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { ThemeToggle } from "@/shared/ui/ThemeToggle";
 import { useSalaryProvider } from "@/features/salary/hooks/useSalaryProvider";
 import { useSalaryPaymentSettingsProvider } from "@/features/salary-payment-settings/hooks/useSalaryPaymentSettingsProvider";
@@ -49,6 +52,7 @@ function AppContent() {
   const { sickLeaves } = useSickLeavesProvider();
 
   const calendarData = useCalendarForYear(displayYear);
+  const { fallbackYears } = useCalendar();
   const payments = usePaymentsForYear(displayYear);
 
   const { vacationDays, sickLeaveDays, totalGross, totalNdfl, totalNet } =
@@ -213,6 +217,25 @@ function AppContent() {
                   />
                   <span>Дни больничного</span>
                 </div>
+
+                {fallbackYears.has(displayYear) && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1.5 text-yellow-600 dark:text-yellow-500 cursor-default ml-auto">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        <span>Не официальный производственный календарь РФ</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      align="end"
+                      className="max-w-xs text-sm font-normal bg-card-secondary text-card-foreground border popover-shadow px-3 py-2"
+                    >
+                      Официальный производственный календарь РФ за этот год не
+                      получен. Выходные дни и расчёты могут измениться.
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
             </CardContent>
           </Card>

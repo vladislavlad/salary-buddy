@@ -50,6 +50,7 @@ describe("VacationsProvider", () => {
             calendars: loadCalendars(2025, 2026),
             isLoading: false,
             displayYears: [2025, 2026],
+            fallbackYears: new Set(),
           }}
         >
           <VacationsProvider createService={createService}>

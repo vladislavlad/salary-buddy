@@ -9,11 +9,19 @@ function formatDate(ld: LocalDate): string {
   return ld.toString().replace(/-/g, "");
 }
 
+/** Результат загрузки календаря с метаданными об источнике. */
+export interface FetchCalendarResult {
+  data: CalendarData;
+  isFallback: boolean;
+}
+
 /** Загружает календарь за год: сначала isdayoff.ru, при отсутствии данных — fallback-генератор. */
-export async function fetchCalendar(year: number): Promise<CalendarData> {
+export async function fetchCalendar(
+  year: number,
+): Promise<FetchCalendarResult> {
   const apiData = await isdayoffFetch(year);
-  if (apiData) return apiData;
-  return generateFallbackCalendar(year);
+  if (apiData) return { data: apiData, isFallback: false };
+  return { data: generateFallbackCalendar(year), isFallback: true };
 }
 
 /** Проверяет, является ли дата выходным или праздником (по данным API). */

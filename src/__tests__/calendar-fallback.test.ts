@@ -169,7 +169,8 @@ describe("fetchCalendar", () => {
     } as Response);
 
     const result = await fetchCalendar(2026);
-    expect(result.get("20260101")).toBe(8);
+    expect(result.data.get("20260101")).toBe(8);
+    expect(result.isFallback).toBe(false);
   });
 
   it("переключается на fallback при отсутствии данных API", async () => {
@@ -182,10 +183,11 @@ describe("fetchCalendar", () => {
 
     const result = await fetchCalendar(2028);
     // Fallback: 1 января — праздник (код 8)
-    expect(result.get("20280101")).toBe(8);
+    expect(result.data.get("20280101")).toBe(8);
     // Fallback: воскресенье 05.03.2028 — выходной (код 1)
-    expect(result.get("20280305")).toBe(1);
+    expect(result.data.get("20280305")).toBe(1);
     // Fallback: обычный будний день — код 0
-    expect(result.get("20280310")).toBe(0);
+    expect(result.data.get("20280310")).toBe(0);
+    expect(result.isFallback).toBe(true);
   });
 });

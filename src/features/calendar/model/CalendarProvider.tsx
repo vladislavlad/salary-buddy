@@ -28,8 +28,9 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
     })),
   });
 
-  const { calendars, allLoaded } = useMemo(() => {
+  const { calendars, fallbackYears, allLoaded } = useMemo(() => {
     const calMap = new Map<number, CalendarData>();
+    const fbSet = new Set<number>();
     let loaded = true;
 
     for (let i = 0; i < displayYears.length; i++) {
@@ -40,16 +41,19 @@ export function CalendarProvider({ children }: { children: React.ReactNode }) {
         loaded = false;
       }
       if (result.data) {
-        calMap.set(displayYears[i]!, result.data);
+        calMap.set(displayYears[i]!, result.data.data);
+        if (result.data.isFallback) {
+          fbSet.add(displayYears[i]!);
+        }
       }
     }
 
-    return { calendars: calMap, allLoaded: loaded };
+    return { calendars: calMap, fallbackYears: fbSet, allLoaded: loaded };
   }, [calendarResults, displayYears]);
 
   const value = useMemo(
-    () => ({ calendars, isLoading: !allLoaded, displayYears }),
-    [calendars, allLoaded, displayYears],
+    () => ({ calendars, fallbackYears, isLoading: !allLoaded, displayYears }),
+    [calendars, fallbackYears, allLoaded, displayYears],
   );
 
   return (
