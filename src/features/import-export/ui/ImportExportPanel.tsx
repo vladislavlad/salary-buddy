@@ -3,21 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Download, Upload, Trash2 } from "lucide-react";
 
 import {
-  type ExportImportRepositories,
   collectExportData,
   importFromFile,
   clearAll,
 } from "@/features/import-export/model/exportImport";
-import {
-  bonusRepository,
-  paymentsRepository,
-  salaryPaymentSettingsRepository,
-  salaryRepository,
-  sickLeaveRepository,
-  sickLeaveSettingsRepository,
-  surchargeRepository,
-  vacationRepository,
-} from "@/app/repositories";
+import { useExportImportRepositories } from "@/features/import-export/model/ExportImportRepositoriesContext";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -29,18 +19,8 @@ import {
 } from "@/shared/ui/dialog";
 import { useToast } from "@/shared/ui/use-toast";
 
-const repos: ExportImportRepositories = {
-  salary: salaryRepository,
-  bonus: bonusRepository,
-  vacation: vacationRepository,
-  surcharge: surchargeRepository,
-  payment: paymentsRepository,
-  sickLeave: sickLeaveRepository,
-  salaryPaymentSettings: salaryPaymentSettingsRepository,
-  sickLeaveSettings: sickLeaveSettingsRepository,
-};
-
 export function ImportExportPanel() {
+  const repos = useExportImportRepositories();
   const importRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
