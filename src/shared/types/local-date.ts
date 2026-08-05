@@ -21,8 +21,3 @@ export const today = () => Temporal.Now.plainDateTimeISO().toPlainDate();
 export function localToDate(ld: LocalDate): Date {
   return new Date(ld.toString());
 }
-
-/** Форматирует дату как "YYYY-MM-DD" (совпадает с CalendarData key). */
-export function formatDateKey(ld: LocalDate): string {
-  return ld.toString();
-}

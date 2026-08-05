@@ -19,7 +19,6 @@ export {
   localDate,
   today as localToday,
   localToDate,
-  formatDateKey,
 } from "./local-date";
 
 // Salary

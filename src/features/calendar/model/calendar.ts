@@ -1,13 +1,9 @@
 import type { CalendarData } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 import { Temporal } from "@js-temporal/polyfill";
+import { localDateToCalendarKey } from "@/shared/lib/utils";
 import { generateFallbackCalendar } from "./calendar-fallback";
 import { isdayoffFetch } from "./isdayoff-fetch";
-
-/** Форматирует LocalDate в формат YYYYMMDD. */
-function formatDate(ld: LocalDate): string {
-  return ld.toString().replace(/-/g, "");
-}
 
 /** Результат загрузки календаря с метаданными об источнике. */
 export interface FetchCalendarResult {
@@ -26,7 +22,7 @@ export async function fetchCalendar(
 
 /** Проверяет, является ли дата выходным или праздником (по данным API). */
 export function isDayOff(date: LocalDate, calendarData: CalendarData): boolean {
-  const code = calendarData.get(formatDate(date));
+  const code = calendarData.get(localDateToCalendarKey(date));
   return code === 1 || code === 8;
 }
 
@@ -85,7 +81,7 @@ export function isOfficialHoliday(
   date: LocalDate,
   calendarData: CalendarData,
 ): boolean {
-  const code = calendarData.get(formatDate(date));
+  const code = calendarData.get(localDateToCalendarKey(date));
   return code === 8;
 }
 

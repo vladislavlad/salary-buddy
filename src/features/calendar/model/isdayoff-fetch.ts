@@ -1,15 +1,11 @@
 import type { CalendarData } from "@/shared/types";
 import { localDate as ld } from "@/shared/types/local-date";
+import { localDateToCalendarKey } from "@/shared/lib/utils";
 
 const ISDAYOFF_BASE_URL = "https://isdayoff.ru/api/getdata";
 
 /** Разделяет официальные праздники (код 8) и выходные (код 1) в ответе API. */
 const SEPARATE_HOLIDAY_AND_WEEKEND = 1;
-
-/** Форматирует LocalDate в формат YYYYMMDD для API. */
-function formatDate(ld: import("@/shared/types/local-date").LocalDate): string {
-  return ld.toString().replace(/-/g, "");
-}
 
 /** Загружает календарь из isdayoff.ru. Возвращает `null`, если API не содержит данных за год (строка из одних нулей). */
 export async function isdayoffFetch(year: number): Promise<CalendarData | null> {
@@ -36,7 +32,7 @@ export async function isdayoffFetch(year: number): Promise<CalendarData | null> 
     const date = ld(year, 1, 1).add({ days: i });
     const code = parseInt(digits.charAt(i), 10);
     if (!isNaN(code)) {
-      data.set(formatDate(date), code);
+      data.set(localDateToCalendarKey(date), code);
     }
   }
 

@@ -8,9 +8,14 @@ export function cn(...inputs: ClassValue[]) {
 
 export const WEEKDAY_NAMES = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-/** Форматирует LocalDate как "YYYY-MM-DD" (совпадает с CalendarData key). */
+/** Форматирует LocalDate как "YYYY-MM-DD". */
 export function dateToKey(date: LocalDate): string {
   return date.toString();
+}
+
+/** Форматирует LocalDate как "YYYYMMDD" (ключ CalendarData). */
+export function localDateToCalendarKey(ld: LocalDate): string {
+  return ld.toString().replace(/-/g, "");
 }
 
 export const MIN_DISPLAY_YEAR = 2024;
