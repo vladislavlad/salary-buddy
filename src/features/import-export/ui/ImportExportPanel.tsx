@@ -3,10 +3,21 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Download, Upload, Trash2 } from "lucide-react";
 
 import {
+  type ExportImportRepositories,
   collectExportData,
   importFromFile,
+  clearAll,
 } from "@/features/import-export/model/exportImport";
-import { clearAll } from "@/features/import-export/model/storage";
+import {
+  bonusRepository,
+  paymentsRepository,
+  salaryPaymentSettingsRepository,
+  salaryRepository,
+  sickLeaveRepository,
+  sickLeaveSettingsRepository,
+  surchargeRepository,
+  vacationRepository,
+} from "@/app/repositories";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -18,6 +29,17 @@ import {
 } from "@/shared/ui/dialog";
 import { useToast } from "@/shared/ui/use-toast";
 
+const repos: ExportImportRepositories = {
+  salary: salaryRepository,
+  bonus: bonusRepository,
+  vacation: vacationRepository,
+  surcharge: surchargeRepository,
+  payment: paymentsRepository,
+  sickLeave: sickLeaveRepository,
+  salaryPaymentSettings: salaryPaymentSettingsRepository,
+  sickLeaveSettings: sickLeaveSettingsRepository,
+};
+
 export function ImportExportPanel() {
   const importRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -27,7 +49,7 @@ export function ImportExportPanel() {
 
   const handleExport = async () => {
     try {
-      const data = await collectExportData();
+      const data = await collectExportData(repos);
       const blob = new Blob([JSON.stringify(data, null, 2)], {
         type: "application/json",
       });
@@ -53,7 +75,7 @@ export function ImportExportPanel() {
   const handleClear = async () => {
     setClearing(true);
     try {
-      await clearAll();
+      await clearAll(repos);
       // Полная перезагрузка – гарантированно сбрасывает все стейты (react-query
       // и локальные стейты настроек), чтобы UI не остался с устаревшими данными.
       window.location.reload();
@@ -72,7 +94,7 @@ export function ImportExportPanel() {
     if (!file) return;
 
     try {
-      await importFromFile(file);
+      await importFromFile(file, repos);
       await queryClient.invalidateQueries();
       toast({
         variant: "success",

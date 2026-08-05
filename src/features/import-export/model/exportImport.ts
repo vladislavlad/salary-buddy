@@ -1,24 +1,9 @@
-import {
-  loadSalaryPaymentSettings,
-  saveSalaryPaymentSettings,
-  loadSalaries,
-  saveSalaries,
-  loadBonuses,
-  saveBonuses,
-  loadVacations,
-  saveVacations,
-  loadSurcharges,
-  saveSurcharges,
-  loadPayments,
-  savePayments,
-  loadSickLeaves,
-  saveSickLeaves,
-  loadSickLeaveSettings,
-  saveSickLeaveSettings,
-  clearAll,
-} from "@/features/import-export/model/storage";
 import { DEFAULT_SALARY_PAYMENT_SETTINGS } from "@/features/salary-payment-settings/model/defaultSalaryPaymentSettings";
-import type { SickLeaveSettings } from "@/shared/types";
+import type { SalaryPaymentSettingsRepository } from "@/features/salary-payment-settings/repository/SalaryPaymentSettingsRepository";
+import type { SickLeaveSettingsRepository } from "@/features/sick-leave/repository/SickLeaveSettingsRepository";
+import type { Repository } from "@/shared/repository/Repository";
+import type { Bonus, Payment, Salary, SickLeave, SurchargeChange, Vacation } from "@/shared/types";
+import type { SickLeaveSettings } from "@/shared/types/sick-leave";
 import { ExportDataSchema } from "@/shared/types/exportImport";
 
 const DEFAULT_SICK_LEAVE_SETTINGS: SickLeaveSettings = {
@@ -26,22 +11,33 @@ const DEFAULT_SICK_LEAVE_SETTINGS: SickLeaveSettings = {
   topUpDaysLimitPerYear: 20,
 };
 
+export interface ExportImportRepositories {
+  salary: Repository<Salary>;
+  bonus: Repository<Bonus>;
+  vacation: Repository<Vacation>;
+  surcharge: Repository<SurchargeChange>;
+  payment: Repository<Payment>;
+  sickLeave: Repository<SickLeave>;
+  salaryPaymentSettings: SalaryPaymentSettingsRepository;
+  sickLeaveSettings: SickLeaveSettingsRepository;
+}
+
 /**
  * Собирает все данные из хранилищ в объект для экспорта.
  */
-export async function collectExportData(): Promise<ReturnType<typeof ExportDataSchema.parse>> {
+export async function collectExportData(repos: ExportImportRepositories): Promise<ReturnType<typeof ExportDataSchema.parse>> {
   const today = new Date();
   const exportDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   const [salaryPaymentSettings, salaries, bonuses, vacations, surcharges, payments, sickLeaves, sickLeaveSettings] = await Promise.all([
-    loadSalaryPaymentSettings(),
-    loadSalaries(),
-    loadBonuses(),
-    loadVacations(),
-    loadSurcharges(),
-    loadPayments(),
-    loadSickLeaves(),
-    loadSickLeaveSettings(),
+    repos.salaryPaymentSettings.get(),
+    repos.salary.findAll(),
+    repos.bonus.findAll(),
+    repos.vacation.findAll(),
+    repos.surcharge.findAll(),
+    repos.payment.findAll(),
+    repos.sickLeave.findAll(),
+    repos.sickLeaveSettings.get(),
   ]);
 
   return ExportDataSchema.parse({
@@ -61,22 +57,38 @@ export async function collectExportData(): Promise<ReturnType<typeof ExportDataS
  * Валидирует и загружает данные из JSON-файла.
  * Перед записью очищает текущие значения в хранилище.
  */
-export async function importFromFile(file: File): Promise<void> {
+export async function importFromFile(file: File, repos: ExportImportRepositories): Promise<void> {
   const text = await file.text();
   const parsed = JSON.parse(text);
 
   const validated = ExportDataSchema.parse(parsed);
 
-  await clearAll();
+  await clearAll(repos);
 
   await Promise.all([
-    saveSalaryPaymentSettings(validated.salaryPaymentSettings),
-    saveSalaries(validated.salaries),
-    saveBonuses(validated.bonuses),
-    saveVacations(validated.vacations),
-    saveSurcharges(validated.surcharges),
-    savePayments(validated.payments),
-    saveSickLeaves(validated.sickLeaves),
-    saveSickLeaveSettings(validated.sickLeaveSettings ?? DEFAULT_SICK_LEAVE_SETTINGS),
+    repos.salaryPaymentSettings.save(validated.salaryPaymentSettings),
+    repos.salary.saveAll(validated.salaries),
+    repos.bonus.saveAll(validated.bonuses),
+    repos.vacation.saveAll(validated.vacations),
+    repos.surcharge.saveAll(validated.surcharges),
+    repos.payment.saveAll(validated.payments),
+    repos.sickLeave.saveAll(validated.sickLeaves),
+    repos.sickLeaveSettings.save(validated.sickLeaveSettings ?? DEFAULT_SICK_LEAVE_SETTINGS),
+  ]);
+}
+
+/**
+ * Очищает все хранилища.
+ */
+export async function clearAll(repos: ExportImportRepositories): Promise<void> {
+  await Promise.all([
+    repos.salary.clear(),
+    repos.bonus.clear(),
+    repos.vacation.clear(),
+    repos.surcharge.clear(),
+    repos.payment.clear(),
+    repos.sickLeave.clear(),
+    repos.salaryPaymentSettings.clear(),
+    repos.sickLeaveSettings.clear(),
   ]);
 }
