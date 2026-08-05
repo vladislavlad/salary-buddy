@@ -11,6 +11,48 @@ import type {
 } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 
+/** Параметры фазы генерации событий аванс/зарплата. */
+export interface BuildSalaryParams {
+  settings: SalaryCalculationSettings;
+  sortedChanges: ReturnType<typeof import("./salary").sortSalaryChanges>;
+  sortedSurchargeChanges: ReturnType<typeof import("./surcharge").sortSurchargeChanges>;
+  vacations: Vacation[];
+  sickLeaves: SickLeave[];
+  calendarsByYear: Map<number, CalendarData>;
+  minYear: number;
+  maxYear: number;
+}
+
+/** Параметры фазы стабилизации отпускных. */
+export interface StabilizeVacationsParams {
+  events: RawEvent[];
+  vacations: Vacation[];
+  factBySource: Map<string, number>;
+  calendarsByYear: Map<number, CalendarData>;
+  minYear: number;
+  maxYear: number;
+}
+
+/** Параметры фазы расчёта больничных. */
+export interface SickLeavePhaseParams {
+  events: RawEvent[];
+  sickLeaves: SickLeave[];
+  sickLeaveSettings: SickLeaveSettings | undefined;
+  calendarsByYear: Map<number, CalendarData>;
+  sortedChanges: ReturnType<typeof import("./salary").sortSalaryChanges>;
+  paymentDatesByMonth: Map<string, MonthPaymentDates>;
+  factBySource: Map<string, number>;
+}
+
+/** Параметры фазы применения НДФЛ и сборки платежей. */
+export interface NdflPhaseParams {
+  events: RawEvent[];
+  factBySource: Map<string, number>;
+  existingPayments: Payment[];
+  recalcFrom: LocalDate | undefined;
+  minYear: number;
+}
+
 export interface CalculateAllInput {
   settings: SalaryCalculationSettings;
   bonuses: Bonus[];

@@ -13,7 +13,15 @@ import {
   countWorkdaysBack,
 } from "@/features/calendar/model/calendar";
 import { calculateNdflForPayment } from "../ndfl";
-import type { CalculateAllInput, RawEvent, MonthPaymentDates } from "./types";
+import type {
+  CalculateAllInput,
+  RawEvent,
+  MonthPaymentDates,
+  BuildSalaryParams,
+  StabilizeVacationsParams,
+  SickLeavePhaseParams,
+  NdflPhaseParams,
+} from "./types";
 import { sortSalaryChanges, getSalaryForDate } from "./salary";
 import { sortSurchargeChanges, calculatePeriodSurcharge } from "./surcharge";
 import {
@@ -25,39 +33,31 @@ import { calculateVacationPayment, type IncomeRecord } from "./vacation";
 import { calculateSickLeavePayments } from "./sick-leave";
 import { generatePaymentId } from "./paymentId";
 
-export type { CalculateAllInput, RawEvent } from "./types";
+export type {
+  CalculateAllInput,
+  RawEvent,
+  BuildSalaryParams,
+  StabilizeVacationsParams,
+  SickLeavePhaseParams,
+  NdflPhaseParams,
+} from "./types";
 export { grossFromNet } from "./netGross";
 
-export function calculateAll(input: CalculateAllInput): Payment[] {
+export function buildSalaryEvents(
+  params: BuildSalaryParams,
+): { events: RawEvent[]; paymentDatesByMonth: Map<string, MonthPaymentDates> } {
   const {
     settings,
-    bonuses,
-    surcharges,
+    sortedChanges,
+    sortedSurchargeChanges,
     vacations,
     sickLeaves,
     calendarsByYear,
-    existingPayments = [],
-    recalcFrom,
-  } = input;
-
-  const sortedChanges = sortSalaryChanges(settings.salaryChanges);
-
-  if (sortedChanges.length === 0) {
-    return [];
-  }
-
-  const sortedSurchargeChanges = sortSurchargeChanges(surcharges ?? []);
-
-  const firstChangeYear = sortedChanges[0]!.effectiveDate.year;
-  const lastChangeYear =
-    sortedChanges[sortedChanges.length - 1]!.effectiveDate.year;
-  const minYear = Math.min(firstChangeYear, MIN_DISPLAY_YEAR);
-  const maxYear = Math.max(lastChangeYear, MAX_DISPLAY_YEAR);
+    minYear,
+    maxYear,
+  } = params;
 
   const events: RawEvent[] = [];
-
-  // Даты выплаты аванса/зарплаты по рабочим месяцам – для размещения выплат
-  // работодателя по больничному (дни 1-15 → аванс, 16+ → зарплата).
   const paymentDatesByMonth = new Map<string, MonthPaymentDates>();
 
   for (let year = minYear; year <= maxYear; year++) {
@@ -238,41 +238,48 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
         }
       }
     }
-
-    // Добавляем премии за этот год
-    for (const b of bonuses) {
-      if (b.date.year !== year) continue;
-      const bonusDate = b.date;
-      const salaryOnDateKop = getSalaryForDate(bonusDate, sortedChanges);
-      if (b.type === "salaries" && salaryOnDateKop <= 0) continue;
-
-      const grossKop =
-        b.type === "salaries" ? b.amount * salaryOnDateKop : b.amount;
-      events.push({
-        sourceId: b.id,
-        date: bonusDate,
-        type: "bonus",
-        grossKop,
-        salaryAmountKop: b.type === "salaries" ? salaryOnDateKop : 0,
-        // Премия начисляется в месяце своей даты.
-        accrualDate: ld(bonusDate.year, bonusDate.month, 1),
-      });
-    }
   }
 
-  // Карта фактов из существующих платежей – учитывается в доходе для отпускных и НДФЛ
-  const factBySource = new Map<string, number>();
-  for (const p of existingPayments) {
-    if (p.fact !== undefined) {
-      factBySource.set(p.sourceId, p.fact);
-    }
-  }
+  return { events, paymentDatesByMonth };
+}
 
-  // Итеративный расчёт отпускных – до стабилизации (max 5 итераций)
+export function addBonusEvents(
+  bonuses: Bonus[],
+  sortedChanges: BuildSalaryParams["sortedChanges"],
+  events: RawEvent[],
+  minYear: number,
+  maxYear: number,
+): void {
+  for (const b of bonuses) {
+    const bonusDate = b.date;
+    if (bonusDate.year < minYear || bonusDate.year > maxYear) continue;
+
+    const salaryOnDateKop = getSalaryForDate(bonusDate, sortedChanges);
+    if (b.type === "salaries" && salaryOnDateKop <= 0) continue;
+
+    const grossKop =
+      b.type === "salaries" ? b.amount * salaryOnDateKop : b.amount;
+    events.push({
+      sourceId: b.id,
+      date: bonusDate,
+      type: "bonus",
+      grossKop,
+      salaryAmountKop: b.type === "salaries" ? salaryOnDateKop : 0,
+      // Премия начисляется в месяце своей даты.
+      accrualDate: ld(bonusDate.year, bonusDate.month, 1),
+    });
+  }
+}
+
+export function stabilizeVacations(
+  params: StabilizeVacationsParams,
+): RawEvent[] {
+  const { events, vacations, calendarsByYear, factBySource, minYear, maxYear } = params;
+
   const nonVacationEvents = events.filter((e) => e.type !== "vacation");
+  let currentVacationEvents = events.filter((e) => e.type === "vacation");
 
   for (let iter = 0; iter < 5; iter++) {
-    const currentVacationEvents = events.filter((e) => e.type === "vacation");
     const allCurrentEvents = [...nonVacationEvents, ...currentVacationEvents];
 
     // Доход для отпускных строим ТОЛЬКО из свежесгенерированных событий –
@@ -309,10 +316,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
         );
         if (!result) continue;
 
-        if (
-          result.paymentDate.year < minYear ||
-          result.paymentDate.year > maxYear
-        )
+        if (result.paymentDate.year < minYear || result.paymentDate.year > maxYear)
           continue;
 
         newVacationEvents.push({
@@ -350,13 +354,27 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
       }
     }
 
-    events.length = 0;
-    events.push(...nonVacationEvents, ...newVacationEvents);
+    currentVacationEvents = newVacationEvents;
 
     if (stabilized) break;
   }
 
-  // Расчёт больничных – после стабилизации отпускных.
+  return [...nonVacationEvents, ...currentVacationEvents];
+}
+
+export function calculateSickLeavePhase(
+  params: SickLeavePhaseParams,
+): RawEvent[] {
+  const {
+    events,
+    sickLeaves,
+    sickLeaveSettings,
+    calendarsByYear,
+    sortedChanges,
+    paymentDatesByMonth,
+    factBySource,
+  } = params;
+
   const nonSickLeaveEvents = events.filter(
     (e) => !e.type.startsWith("sick-leave"),
   );
@@ -370,7 +388,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
 
   const sickLeaveEvents = calculateSickLeavePayments(
     sickLeaves,
-    input.sickLeaveSettings,
+    sickLeaveSettings,
     calendarsByYear,
     incomeForSickLeave,
     sortedChanges.length > 0 && sickLeaves.length > 0
@@ -380,8 +398,19 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
     paymentDatesByMonth,
   );
 
-  events.length = 0;
-  events.push(...nonSickLeaveEvents, ...sickLeaveEvents);
+  return [...nonSickLeaveEvents, ...sickLeaveEvents];
+}
+
+export function buildPaymentsWithNdfl(
+  params: NdflPhaseParams,
+): Payment[] {
+  const {
+    events,
+    existingPayments,
+    recalcFrom,
+    factBySource,
+    minYear,
+  } = params;
 
   // Если есть recalcFrom – сохраняем платежи до этой даты из existingPayments
   let preservedPreRecalc: Payment[] = [];
@@ -482,4 +511,79 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
   }
 
   return [...preservedPreRecalc, ...recalculatedPayments];
+}
+
+export function calculateAll(input: CalculateAllInput): Payment[] {
+  const {
+    settings,
+    bonuses,
+    surcharges,
+    vacations,
+    sickLeaves,
+    calendarsByYear,
+    existingPayments = [],
+    recalcFrom,
+  } = input;
+
+  const sortedChanges = sortSalaryChanges(settings.salaryChanges);
+  if (sortedChanges.length === 0) return [];
+
+  const sortedSurchargeChanges = sortSurchargeChanges(surcharges ?? []);
+
+  const firstChangeYear = sortedChanges[0]!.effectiveDate.year;
+  const lastChangeYear = sortedChanges[sortedChanges.length - 1]!.effectiveDate.year;
+  const minYear = Math.min(firstChangeYear, MIN_DISPLAY_YEAR);
+  const maxYear = Math.max(lastChangeYear, MAX_DISPLAY_YEAR);
+
+  // Phase 1: Build salary/advance/surcharge events + bonus events
+  const { events, paymentDatesByMonth } = buildSalaryEvents({
+    settings,
+    sortedChanges,
+    sortedSurchargeChanges,
+    vacations,
+    sickLeaves,
+    calendarsByYear,
+    minYear,
+    maxYear,
+  });
+
+  addBonusEvents(bonuses, sortedChanges, events, minYear, maxYear);
+
+  // Карта фактов из существующих платежей – учитывается в доходе для отпускных и НДФЛ
+  const factBySource = new Map<string, number>();
+  for (const p of existingPayments) {
+    if (p.fact !== undefined) {
+      factBySource.set(p.sourceId, p.fact);
+    }
+  }
+
+  // Phase 2: Stabilize vacation payments iteratively
+  const stabilizedEvents = stabilizeVacations({
+    events,
+    vacations,
+    calendarsByYear,
+    factBySource,
+    minYear,
+    maxYear,
+  });
+
+  // Phase 3: Calculate sick leave payments
+  const allEvents = calculateSickLeavePhase({
+    events: stabilizedEvents,
+    sickLeaves,
+    sickLeaveSettings: input.sickLeaveSettings,
+    calendarsByYear,
+    sortedChanges,
+    paymentDatesByMonth,
+    factBySource,
+  });
+
+  // Phase 4: Build final payments with NDFl calculation
+  return buildPaymentsWithNdfl({
+    events: allEvents,
+    existingPayments,
+    recalcFrom,
+    factBySource,
+    minYear,
+  });
 }
