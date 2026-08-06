@@ -1,8 +1,9 @@
+import type { Repository } from "@/shared/repository/Repository";
 import type { Salary } from "@/shared/types";
-import type { SalaryRepository } from "@/features/salary/repository/SalaryRepository";
+import type { SalaryService } from "./SalaryService";
 
-export class SalaryApplicationService {
-  constructor(private readonly repository: SalaryRepository) {}
+export class SalaryApplicationService implements SalaryService {
+  constructor(private readonly repository: Repository<Salary>) {}
 
   findAll(): Promise<Salary[]> {
     return this.repository.findAll();

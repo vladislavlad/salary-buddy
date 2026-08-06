@@ -1,3 +1,4 @@
+import type { Repository } from "@/shared/repository/Repository";
 import type { CalendarData } from "@/shared/types";
 import type {
   Vacation,
@@ -5,13 +6,12 @@ import type {
   VacationUpdateRequest,
 } from "@/shared/types/vacation";
 import { createVacation, updateVacation } from "./vacationRules";
-import type { VacationRepository } from "@/features/vacation/repository/VacationRepository";
 import type { Result } from "@/shared/result";
 import type { VacationService } from "./VacationService";
 
 export class VacationApplicationService implements VacationService {
   constructor(
-    private readonly repository: VacationRepository,
+    private readonly repository: Repository<Vacation>,
     private readonly calendars: ReadonlyMap<number, CalendarData>,
   ) {}
 

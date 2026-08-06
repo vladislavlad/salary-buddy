@@ -1,3 +1,4 @@
+import type { Repository } from "@/shared/repository/Repository";
 import type {
   SurchargeChange,
   SurchargeCreateRequest,
@@ -5,10 +6,10 @@ import type {
 } from "@/shared/types";
 import type { Result } from "@/shared/result";
 import { createSurcharge, updateSurcharge } from "./surchargeRules";
-import type { SurchargeRepository } from "@/features/surcharge/repository/SurchargeRepository";
+import type { SurchargeService } from "./SurchargeService";
 
-export class SurchargeApplicationService {
-  constructor(private readonly repository: SurchargeRepository) {}
+export class SurchargeApplicationService implements SurchargeService {
+  constructor(private readonly repository: Repository<SurchargeChange>) {}
 
   findAll(): Promise<SurchargeChange[]> {
     return this.repository.findAll();

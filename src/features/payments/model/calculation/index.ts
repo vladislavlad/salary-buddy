@@ -1,3 +1,4 @@
+import type { Bonus } from "@/shared/types/bonus";
 import type { Payment } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 import { localDate as ld } from "@/shared/types/local-date";
@@ -388,7 +389,7 @@ export function calculateSickLeavePhase(
 
   const sickLeaveEvents = calculateSickLeavePayments(
     sickLeaves,
-    sickLeaveSettings,
+    sickLeaveSettings ?? { enableTopUp: false, topUpDaysLimitPerYear: 20 },
     calendarsByYear,
     incomeForSickLeave,
     sortedChanges.length > 0 && sickLeaves.length > 0

@@ -1,13 +1,13 @@
+import type { Repository } from "@/shared/repository/Repository";
 import type { CalendarData } from "@/shared/types";
 import type { SickLeave, SickLeaveCreateRequest, SickLeaveUpdateRequest } from "@/shared/types/sick-leave";
 import { createSickLeave, updateSickLeave } from "./sickLeaveRules";
-import type { SickLeaveRepository } from "@/features/sick-leave/repository/SickLeaveRepository";
 import type { Result } from "@/shared/result";
 import type { SickLeaveService } from "./SickLeaveService";
 
 export class SickLeaveApplicationService implements SickLeaveService {
   constructor(
-    private readonly repository: SickLeaveRepository,
+    private readonly repository: Repository<SickLeave>,
     private readonly calendars: ReadonlyMap<number, CalendarData>,
   ) {}
 

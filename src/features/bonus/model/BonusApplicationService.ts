@@ -1,14 +1,15 @@
+import type { Repository } from "@/shared/repository/Repository";
 import type {
   Bonus,
   BonusCreateRequest,
   BonusUpdateRequest,
 } from "@/shared/types";
 import { createBonus, updateBonus } from "./bonusRules";
-import type { BonusRepository } from "@/features/bonus/repository/BonusRepository";
 import type { Result } from "@/shared/result";
+import type { BonusService } from "./BonusService";
 
-export class BonusApplicationService {
-  constructor(private readonly repository: BonusRepository) {}
+export class BonusApplicationService implements BonusService {
+  constructor(private readonly repository: Repository<Bonus>) {}
 
   findAll(): Promise<Bonus[]> {
     return this.repository.findAll();
