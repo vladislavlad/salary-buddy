@@ -26,6 +26,7 @@ const POPOVER_GAP_ABOVE = 2;
 interface PaymentDetailsProps {
   label?: string;
   salaryAmount?: number;
+  regionalCoefficientPercent?: number;
   isBonus?: boolean;
   gross: number;
   fact?: number;
@@ -37,6 +38,7 @@ interface PaymentDetailsProps {
 function PaymentDetails({
   label,
   salaryAmount,
+  regionalCoefficientPercent,
   isBonus,
   gross,
   fact,
@@ -58,6 +60,12 @@ function PaymentDetails({
           <span>
             <Money amount={salaryAmount} />
           </span>
+        </div>
+      )}
+      {salaryAmount != null && salaryAmount > 0 && !isBonus && regionalCoefficientPercent != null && regionalCoefficientPercent > 0 && (
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Районный коэф.:</span>
+          <span>{regionalCoefficientPercent}%</span>
         </div>
       )}
       <div className="flex justify-between">
@@ -233,6 +241,7 @@ export function PaymentDetailsPanel({
               <PaymentDetails
                 label={getPaymentLabel(item.type)}
                 salaryAmount={item.salaryAmount}
+                regionalCoefficientPercent={item.regionalCoefficientPercent}
                 isBonus={item.type === "bonus"}
                 gross={item.gross}
                 fact={item.fact}

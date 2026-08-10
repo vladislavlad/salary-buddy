@@ -1,10 +1,11 @@
-import type { CalendarData, SalaryChange } from "@/shared/types";
+import type { CalendarData, RegionalCoefficientChange, SalaryChange } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 import { localDate as ld } from "@/shared/types/local-date";
 import { isDayOff } from "@/features/calendar/model/calendar";
 import { dateToKey } from "@/shared/lib/utils";
 import { divideRound } from "@/shared/lib/money";
 import { getSalaryForDate } from "./salary";
+import { getCoefficientForDate } from "./regionalCoefficient";
 
 export function getWorkdaysInRange(
   year: number,
@@ -32,6 +33,7 @@ export function calculatePeriodGross(
   totalWorkdaysInMonth: number,
   calendarData: CalendarData,
   sortedChanges: readonly SalaryChange[],
+  sortedCoefficients?: readonly RegionalCoefficientChange[],
 ): number {
   const workdays = getWorkdaysInRange(
     year,
@@ -48,7 +50,15 @@ export function calculatePeriodGross(
     const salaryKop = getSalaryForDate(day, sortedChanges);
     if (salaryKop <= 0) continue;
 
-    grossKop += divideRound(salaryKop, totalWorkdaysInMonth);
+    let dailyKop = salaryKop;
+    if (sortedCoefficients && sortedCoefficients.length > 0) {
+      const pct = getCoefficientForDate(day, sortedCoefficients);
+      if (pct > 0) {
+        dailyKop = Math.round(salaryKop * (1 + pct / 100));
+      }
+    }
+
+    grossKop += divideRound(dailyKop, totalWorkdaysInMonth);
   }
 
   return grossKop;

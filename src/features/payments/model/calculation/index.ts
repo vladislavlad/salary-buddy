@@ -25,6 +25,7 @@ import type {
 } from "./types";
 import { sortSalaryChanges, getSalaryForDate } from "./salary";
 import { sortSurchargeChanges, calculatePeriodSurcharge } from "./surcharge";
+import { sortRegionalCoefficientChanges, getCoefficientForDate } from "./regionalCoefficient";
 import {
   calculatePeriodGross,
   calculateByWorkedDays,
@@ -51,6 +52,7 @@ export function buildSalaryEvents(
     settings,
     sortedChanges,
     sortedSurchargeChanges,
+    sortedRegionalCoefficientChanges,
     vacations,
     sickLeaves,
     calendarsByYear,
@@ -104,6 +106,7 @@ export function buildSalaryEvents(
         totalWorkdaysInMonth,
         calendarData,
         sortedChanges,
+        sortedRegionalCoefficientChanges,
       );
 
       const salaryPeriodGrossKop = calculatePeriodGross(
@@ -115,6 +118,7 @@ export function buildSalaryEvents(
         totalWorkdaysInMonth,
         calendarData,
         sortedChanges,
+        sortedRegionalCoefficientChanges,
       );
 
       let advanceGrossKop: number;
@@ -197,6 +201,20 @@ export function buildSalaryEvents(
         sortedChanges,
       );
 
+      // Районный коэффициент на середину месяца (для отображения в деталях выплаты)
+      const monthCoeffPercent = sortedRegionalCoefficientChanges
+        ? getCoefficientForDate(
+            ld(
+              year,
+              month,
+              15 > ld(year, month, 1).daysInMonth
+                ? ld(year, month, 1).daysInMonth
+                : 15,
+            ),
+            sortedRegionalCoefficientChanges,
+          )
+        : 0;
+
       // Месяц начисления – рабочий месяц (year, month), независимо от того,
       // в каком месяце фактически выплачены аванс/зарплата.
       const accrualDate = ld(year, month, 1);
@@ -209,6 +227,7 @@ export function buildSalaryEvents(
           type: "advance",
           grossKop: advanceGrossKop,
           salaryAmountKop: monthSalaryKop,
+          regionalCoefficientPercent: monthCoeffPercent > 0 ? monthCoeffPercent : undefined,
           month,
           accrualDate,
         });
@@ -222,6 +241,7 @@ export function buildSalaryEvents(
           type: "salary",
           grossKop: salaryGrossKop,
           salaryAmountKop: monthSalaryKop,
+          regionalCoefficientPercent: monthCoeffPercent > 0 ? monthCoeffPercent : undefined,
           month,
           accrualDate,
         });
@@ -499,6 +519,7 @@ export function buildPaymentsWithNdfl(
       ...(event.originalDate ? { originalDate: event.originalDate } : {}),
       type: event.type,
       salaryAmount: event.salaryAmountKop,
+      ...(event.regionalCoefficientPercent !== undefined ? { regionalCoefficientPercent: event.regionalCoefficientPercent } : {}),
       gross: event.grossKop,
       ndfls: ndflResult.breakdown,
       ndfl: ndflResult.ndfl,
@@ -519,6 +540,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
     settings,
     bonuses,
     surcharges,
+    regionalCoefficients,
     vacations,
     sickLeaves,
     calendarsByYear,
@@ -530,6 +552,8 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
   if (sortedChanges.length === 0) return [];
 
   const sortedSurchargeChanges = sortSurchargeChanges(surcharges ?? []);
+  const sortedRegionalCoefficientChanges =
+    sortRegionalCoefficientChanges(regionalCoefficients ?? []);
 
   const firstChangeYear = sortedChanges[0]!.effectiveDate.year;
   const lastChangeYear = sortedChanges[sortedChanges.length - 1]!.effectiveDate.year;
@@ -541,6 +565,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
     settings,
     sortedChanges,
     sortedSurchargeChanges,
+    sortedRegionalCoefficientChanges,
     vacations,
     sickLeaves,
     calendarsByYear,
@@ -575,6 +600,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
     sickLeaveSettings: input.sickLeaveSettings,
     calendarsByYear,
     sortedChanges,
+    sortedRegionalCoefficientChanges,
     paymentDatesByMonth,
     factBySource,
   });

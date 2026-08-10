@@ -8,6 +8,7 @@ import {
   PaymentSchema,
   SickLeaveSchema,
   SickLeaveSettingsSchema,
+  RegionalCoefficientChangeSchema,
 } from "@/shared/types";
 
 export const ExportDataSchema = z.object({
@@ -20,6 +21,7 @@ export const ExportDataSchema = z.object({
   payments: PaymentSchema.array(),
   sickLeaves: SickLeaveSchema.array().optional().default([]),
   sickLeaveSettings: SickLeaveSettingsSchema.optional(),
+  regionalCoefficients: RegionalCoefficientChangeSchema.array().optional().default([]),
 });
 
 export type ExportData = z.infer<typeof ExportDataSchema>;

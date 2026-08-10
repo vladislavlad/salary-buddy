@@ -7,6 +7,7 @@ import {
   HeartPulse,
   Umbrella,
   Download,
+  MapPin,
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader } from "@/shared/ui/card";
@@ -22,6 +23,7 @@ import { YearNavigator } from "@/features/calendar/ui/YearNavigator";
 import { BonusManager } from "@/features/bonus/ui/BonusManager";
 import { SickLeaveManager } from "@/features/sick-leave/ui/SickLeaveManager";
 import { VacationManager } from "@/features/vacation/ui/VacationManager";
+import { RegionalCoefficientManager } from "@/features/regional-coefficient/ui/RegionalCoefficientManager";
 import { useCalendar } from "@/features/calendar/hooks/useCalendar";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { ThemeToggle } from "@/shared/ui/ThemeToggle";
@@ -92,6 +94,10 @@ function AppContent() {
 
           <CollapsibleSection title="Доплаты" icon={Settings2}>
             <SurchargeManager />
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Районный коэффициент" icon={MapPin}>
+            <RegionalCoefficientManager />
           </CollapsibleSection>
 
           <CollapsibleSection title="Премии" icon={Plus}>

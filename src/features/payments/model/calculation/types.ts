@@ -8,6 +8,7 @@ import type {
   SickLeave,
   SickLeaveSettings,
   PaymentType,
+  RegionalCoefficientChange,
 } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 
@@ -16,6 +17,7 @@ export interface BuildSalaryParams {
   settings: SalaryCalculationSettings;
   sortedChanges: ReturnType<typeof import("./salary").sortSalaryChanges>;
   sortedSurchargeChanges: ReturnType<typeof import("./surcharge").sortSurchargeChanges>;
+  sortedRegionalCoefficientChanges?: ReturnType<typeof import("./regionalCoefficient").sortRegionalCoefficientChanges>;
   vacations: Vacation[];
   sickLeaves: SickLeave[];
   calendarsByYear: Map<number, CalendarData>;
@@ -40,6 +42,7 @@ export interface SickLeavePhaseParams {
   sickLeaveSettings: SickLeaveSettings | undefined;
   calendarsByYear: Map<number, CalendarData>;
   sortedChanges: ReturnType<typeof import("./salary").sortSalaryChanges>;
+  sortedRegionalCoefficientChanges?: ReturnType<typeof import("./regionalCoefficient").sortRegionalCoefficientChanges>;
   paymentDatesByMonth: Map<string, MonthPaymentDates>;
   factBySource: Map<string, number>;
 }
@@ -57,6 +60,7 @@ export interface CalculateAllInput {
   settings: SalaryCalculationSettings;
   bonuses: Bonus[];
   surcharges: SurchargeChange[];
+  regionalCoefficients?: RegionalCoefficientChange[];
   vacations: Vacation[];
   sickLeaves: SickLeave[];
   sickLeaveSettings: SickLeaveSettings;
@@ -72,6 +76,7 @@ export interface RawEvent {
   type: PaymentType;
   grossKop: number; // копейки
   salaryAmountKop: number; // оклад на момент выплаты, копейки (0 для отпускных и доплат)
+  regionalCoefficientPercent?: number; // применённый районный коэффициент в % (для отображения)
   month?: number;
   // Первый день месяца начисления (за который заработано). Для отпускных средний
   // заработок считается по этому месяцу, а не по дате выплаты.

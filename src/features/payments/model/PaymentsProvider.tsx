@@ -5,6 +5,7 @@ import { useBonusesProvider } from "@/features/bonus/hooks/useBonusesProvider";
 import { useVacationsProvider } from "@/features/vacation/hooks/useVacationsProvider";
 import { useSickLeavesProvider } from "@/features/sick-leave/hooks/useSickLeavesProvider";
 import { useSurchargeProvider } from "@/features/surcharge/hooks/useSurchargeProvider";
+import { useRegionalCoefficientProvider } from "@/features/regional-coefficient/hooks/useRegionalCoefficientProvider";
 import { useCalendar } from "@/features/calendar/hooks/useCalendar.ts";
 import type { Payment } from "@/shared/types";
 import { PaymentsContext } from "./PaymentsContext";
@@ -20,6 +21,7 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
     useSalaryPaymentSettingsProvider();
   const { bonuses, loading: bonusesLoading } = useBonusesProvider();
   const { surcharges, loading: surchargesLoading } = useSurchargeProvider();
+  const { coefficients, loading: coefficientsLoading } = useRegionalCoefficientProvider();
   const { vacations, loading: vacationsLoading } = useVacationsProvider();
   const { sickLeaves, settings: sickLeaveSettings, loading: sickLeavesLoading } = useSickLeavesProvider();
   const { calendars, isLoading: calendarLoading } = useCalendar();
@@ -32,6 +34,7 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
     !settingsLoading &&
     !bonusesLoading &&
     !surchargesLoading &&
+    !coefficientsLoading &&
     !vacationsLoading &&
     !sickLeavesLoading &&
     !calendarLoading;
@@ -49,12 +52,13 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
       },
       bonuses,
       surcharges,
+      regionalCoefficients: coefficients,
       vacations,
       sickLeaves,
       sickLeaveSettings,
       calendars,
     }),
-    [paymentSettings, salaries, bonuses, surcharges, vacations, sickLeaves, sickLeaveSettings, calendars],
+    [paymentSettings, salaries, bonuses, surcharges, coefficients, vacations, sickLeaves, sickLeaveSettings, calendars],
   );
 
   useEffect(() => {

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { LocalStorageRepository } from "@/shared/repository/LocalStorageRepository";
 import { LocalStorageSalaryPaymentSettingsRepository } from "@/features/salary-payment-settings/repository/LocalStorageSalaryPaymentSettingsRepository";
 import { LocalStorageSickLeaveSettingsRepository } from "@/features/sick-leave/repository/LocalStorageSickLeaveSettingsRepository";
-import { BonusSchema, PaymentSchema, SalarySchema, SickLeaveSchema, SurchargeChangeSchema, VacationSchema } from "@/shared/types";
+import { BonusSchema, PaymentSchema, RegionalCoefficientChangeSchema, SalarySchema, SickLeaveSchema, SurchargeChangeSchema, VacationSchema } from "@/shared/types";
 
 export const bonusRepository = new LocalStorageRepository(
   "salary-buddy-bonuses",
@@ -31,4 +31,8 @@ export const surchargeRepository = new LocalStorageRepository(
 export const vacationRepository = new LocalStorageRepository(
   "salary-buddy-vacations",
   z.array(VacationSchema) as z.ZodType<z.infer<typeof VacationSchema>[]>,
+);
+export const regionalCoefficientRepository = new LocalStorageRepository(
+  "salary-buddy-regional-coefficients",
+  z.array(RegionalCoefficientChangeSchema) as z.ZodType<z.infer<typeof RegionalCoefficientChangeSchema>[]>,
 );
