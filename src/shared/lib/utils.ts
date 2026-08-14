@@ -17,6 +17,3 @@ export function dateToKey(date: LocalDate): string {
 export function localDateToCalendarKey(ld: LocalDate): string {
   return ld.toString().replace(/-/g, "");
 }
-
-export const MIN_DISPLAY_YEAR = 2024;
-export const MAX_DISPLAY_YEAR = 2027;

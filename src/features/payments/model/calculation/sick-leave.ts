@@ -11,6 +11,7 @@ import type { RawEvent, MonthPaymentDates } from "./types";
 import type { IncomeRecord } from "./vacation";
 import { getCoefficientForDate } from "./regionalCoefficient";
 import { getSickLeaveLimits } from "./sickLeaveLimits";
+import { getWorkInjuryMonthlyCapKop } from "@/shared/lib/yearSettings";
 
 // Половина месяца для выплат работодателя: "a" – дни 1-15 (аванс), "b" – дни 16+ (зарплата).
 type MonthHalf = "a" | "b";
@@ -35,9 +36,6 @@ function resolveEmployerPayDate(
   const target = half === "a" ? entry?.advanceDate : entry?.salaryDate;
   return target ?? fallback;
 }
-
-// Макс. пособие по производственной травме в месяц: 4 × макс. ежемесячной страховой выплаты (ст. 9 ФЗ-125)
-const WORK_INJURY_MONTHLY_CAP_KOP = 50_315_664; // 503 156,64 ₽
 
 function getExperiencePercent(
   reason: SickLeave["reason"],
@@ -284,9 +282,11 @@ export function calculateSickLeavePayments(
         }
       }
 
-      // Лимит пособия по производственной травме: не более 4× макс. ежемесячной страховой выплаты (ст. 9 ФЗ-125).
+      // Лимит пособия по производственной травме: не более 4× макс. ежемесячной
+      // страховой выплаты (ст. 9 ФЗ-125), значение за месяц/год чанка.
       if (sl.reason === "work-injury") {
-        sfrGrossKop = Math.min(sfrGrossKop, WORK_INJURY_MONTHLY_CAP_KOP);
+        const workInjuryCapKop = getWorkInjuryMonthlyCapKop(ld(year, month, 1));
+        sfrGrossKop = Math.min(sfrGrossKop, workInjuryCapKop);
       }
 
       if (sfrGrossKop > 0) {

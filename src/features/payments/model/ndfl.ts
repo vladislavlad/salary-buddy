@@ -1,10 +1,9 @@
 import type { TaxBracketBreakdown } from "@/shared/types";
 import { multiplyByPercent } from "@/shared/lib/money";
-
-// Конфигурация НДФЛ по годам – пороги в копейках, ставки в %.
-interface NdflYearConfig {
-  brackets: [thresholdKop: number, ratePercent: number][];
-}
+import {
+  RC_BASE_BRACKETS,
+  getYearSettings,
+} from "@/shared/lib/yearSettings";
 
 function computeBracketTaxes(
   accumulatedIncomeKop: number,
@@ -21,38 +20,6 @@ function computeBracketTaxes(
   }
   return result;
 }
-
-const NDFL_PROGRESSIVE_1: NdflYearConfig = {
-  brackets: [
-    [500_000_000, 13], // 5 000 000 ₽ в копейках
-    [Infinity, 15],
-  ],
-};
-
-const NDFL_PROGRESSIVE_2: NdflYearConfig = {
-  brackets: [
-    [240_000_000, 13], // 2 400 000 ₽ в копейках
-    [500_000_000, 15], // 5 000 000 ₽ в копейках
-    [2_000_000_000, 18], // 20 000 000 ₽ в копейках
-    [5_000_000_000, 20], // 50 000 000 ₽ в копейках
-    [Infinity, 22],
-  ],
-};
-
-const NDFL_CONFIGS: Record<number, NdflYearConfig> = {
-  2023: NDFL_PROGRESSIVE_1,
-  2024: NDFL_PROGRESSIVE_1,
-  2025: NDFL_PROGRESSIVE_2,
-  2026: NDFL_PROGRESSIVE_2,
-};
-
-function getNdflConfig(year: number): NdflYearConfig {
-  return NDFL_CONFIGS[year] ?? NDFL_PROGRESSIVE_2;
-}
-
-// Отдельная база для части РК (п. 6.2 ст. 210, п. 1.2 ст. 224 НК РФ, с 2025):
-// 13% до 5 млн ₽ в год, 15% на сумму превышения.
-const RC_BASE_BRACKETS: [number, number][] = NDFL_PROGRESSIVE_1.brackets;
 
 // НДФЛ с конкретной выплаты = разница налогов на накопленный доход до/после выплаты,
 // посчитанная по каждому диапазону и сведённая по ставкам.
@@ -101,10 +68,10 @@ export interface NdflRcOptions {
   /** Накопленная часть РК с начала года до этой выплаты, копейки. */
   previousRcAccumulatedKop?: number;
   /**
-   * Год, с которого к выплате применяется отдельная база РК:
-   * 2025 – аванс/зарплата/премия, 2026 – выплаты, рассчитанные из среднего заработка.
+   * К выплате применяется отдельная база РК (п. 6.2 ст. 210, п. 1.2 ст. 224 НК РФ).
+   * Категория выплат и год – по таблице настроек (yearSettings).
    */
-  rcBaseFromYear?: number;
+  separateRcBase?: boolean;
 }
 
 export function calculateNdflForPayment(
@@ -119,15 +86,14 @@ export function calculateNdflForPayment(
   breakdown: TaxBracketBreakdown[];
   newRcAccumulatedIncome: number;
 } {
-  const config = getNdflConfig(year);
-  const TAX_BRACKETS = config.brackets;
+  const TAX_BRACKETS = getYearSettings(year).ndflBrackets;
 
   const rcKop = rc?.rcKop ?? 0;
   const previousRcKop = rc?.previousRcAccumulatedKop ?? 0;
-  const rcBaseFromYear = rc?.rcBaseFromYear ?? 2025;
-  // Отдельная база РК действует, если часть РК есть и год не раньше порога.
-  // Иначе часть РК остаётся в основной базе (общая шкала).
-  const separateRcBase = rcKop > 0 && year >= rcBaseFromYear;
+  // Отдельная база РК действует, если часть РК есть и для года/категории
+  // выплат это предусмотрено таблицей настроек. Иначе часть РК остаётся
+  // в основной базе (общая шкала).
+  const separateRcBase = rcKop > 0 && (rc?.separateRcBase ?? false);
   const mainGrossKop = separateRcBase ? paymentGrossKop - rcKop : paymentGrossKop;
 
   const newAccumulatedIncomeKop =

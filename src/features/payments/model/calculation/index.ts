@@ -3,11 +3,12 @@ import type { Payment, PaymentType } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 import { localDate as ld } from "@/shared/types/local-date";
 import { Temporal } from "@js-temporal/polyfill";
+import { dateToKey } from "@/shared/lib/utils";
 import {
   MIN_DISPLAY_YEAR,
   MAX_DISPLAY_YEAR,
-  dateToKey,
-} from "@/shared/lib/utils";
+  getYearSettings,
+} from "@/shared/lib/yearSettings";
 import {
   findPreviousWorkday,
   countWorkdays,
@@ -448,8 +449,8 @@ export function calculateSickLeavePhase(
   return [...nonSickLeaveEvents, ...sickLeaveEvents];
 }
 
-// Выплаты, рассчитанные из среднего заработка – отдельная база РК действует с 2026
-// (абз. 2 п. 6.2 ст. 210 НК РФ); для аванса/зарплаты/премии – с 2025.
+// Выплаты, рассчитанные из среднего заработка – категория отдельной базы РК;
+// годы применения – в таблице настроек (yearSettings).
 const AVERAGE_EARNINGS_PAYMENT_TYPES = new Set<PaymentType>([
   "vacation",
   "sick-leave",
@@ -554,9 +555,12 @@ export function buildPaymentsWithNdfl(
       eventRcKop > 0 && event.grossKop > 0
         ? Math.round((effectiveGrossKop * eventRcKop) / event.grossKop)
         : 0;
-    const rcBaseFromYear = AVERAGE_EARNINGS_PAYMENT_TYPES.has(event.type)
-      ? 2026
-      : 2025;
+    // Отдельная база РК – по году и категории выплаты из таблицы настроек.
+    const rcCategory = AVERAGE_EARNINGS_PAYMENT_TYPES.has(event.type)
+      ? "averageEarnings"
+      : "salary";
+    const separateRcBase =
+      getYearSettings(currentYear).rcSeparateBase[rcCategory];
 
     const ndflResult = calculateNdflForPayment(
       effectiveGrossKop,
@@ -565,7 +569,7 @@ export function buildPaymentsWithNdfl(
       {
         rcKop,
         previousRcAccumulatedKop: rcAccumulatedIncomeKop,
-        rcBaseFromYear,
+        separateRcBase,
       },
     );
 

@@ -188,7 +188,14 @@ describe("sick-leave-calculation", () => {
 
     it("getSickLeaveLimits: годы вне таблицы – ближайший год", () => {
       expect(getSickLeaveLimits(2023)).toEqual(getSickLeaveLimits(2024));
-      expect(getSickLeaveLimits(2027)).toEqual(getSickLeaveLimits(2026));
+      expect(getSickLeaveLimits(2028)).toEqual(getSickLeaveLimits(2027));
+    });
+
+    it("2027: max – по базам 2026+2025, min – МРОТ 2026 (fallback)", () => {
+      expect(getSickLeaveLimits(2027)).toEqual({
+        minAvgDailyEarningsKop: 89_073, // МРОТ 2027 не установлен → 2026
+        maxAvgDailyEarningsKop: 786_027, // (2 979 000 + 2 759 000) / 730
+      });
     });
 
     it("2024: clamp по минимуму использует МРОТ 2024 (63 261, а не 89 073)", () => {
@@ -224,6 +231,56 @@ describe("sick-leave-calculation", () => {
       // illness: дни 1-3 работодатель
       const empEvent = events.find((e) => e.type === "sick-leave");
       expect(empEvent!.grossKop).toBe(3 * 567_397);
+    });
+  });
+
+  describe("кап по производственной травме по годам", () => {
+    // Доход за 2 года: 30 000 000 ₽ = 3_000_000_000 коп → СДЗ = 4_109_589 коп/день.
+    // 30 дней в одном месяце → СФР часть сильно выше капа → применяется лимит.
+    const avgDailyEarningsKop = Math.round(3_000_000_000 / 730);
+
+    function workInjurySfrGrossKop(
+      startDate: ReturnType<typeof ld>,
+      calendarDays: number,
+      incomeYear: number,
+    ): number {
+      const incomeRecords: IncomeRecord[] = [
+        { type: "salary", accrualDate: ld(incomeYear, 6, 15), grossKop: 3_000_000_000 },
+      ];
+      const sl = createSickLeave(
+        `sick:${startDate.year}:wi`,
+        startDate,
+        calendarDays,
+        "work-injury",
+        "under5",
+      );
+      const events = calculateSickLeavePayments(
+        [sl],
+        defaultSettings,
+        calendars,
+        incomeRecords,
+        100_000 * 100,
+      );
+      const sfrEvent = events.find((e) => e.type === "sick-leave-sfr");
+      expect(sfrEvent).toBeDefined();
+      return sfrEvent!.grossKop;
+    }
+
+    it("2024: СФР часть не выше 43 513 616 коп", () => {
+      expect(30 * avgDailyEarningsKop).toBeGreaterThan(43_513_616);
+      expect(workInjurySfrGrossKop(ld(2024, 6, 1), 30, 2023)).toBe(43_513_616);
+    });
+
+    it("2025: СФР часть не выше 47 647 408 коп", () => {
+      expect(workInjurySfrGrossKop(ld(2025, 6, 1), 30, 2024)).toBe(47_647_408);
+    });
+
+    it("2026: СФР часть не выше 50 315 664 коп", () => {
+      expect(workInjurySfrGrossKop(ld(2026, 6, 1), 30, 2025)).toBe(50_315_664);
+    });
+
+    it("январь 2026: лимит 2025 (47 647 408 коп)", () => {
+      expect(workInjurySfrGrossKop(ld(2026, 1, 1), 31, 2025)).toBe(47_647_408);
     });
   });
 

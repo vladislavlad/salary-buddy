@@ -367,6 +367,7 @@ describe("regional-coefficient: отдельная база НДФЛ для ча
     // gross 130 000 ₽, из них часть РК 30 000 ₽.
     const result = calculateNdflForPayment(13_000_000, 0, 2026, {
       rcKop: 3_000_000,
+      separateRcBase: true,
     });
 
     // Основная база: 100 000 × 13% = 13 000; база РК: 30 000 × 13% = 3 900.
@@ -381,6 +382,7 @@ describe("regional-coefficient: отдельная база НДФЛ для ча
     const result = calculateNdflForPayment(100_000_000, 0, 2026, {
       rcKop: 20_000_000,
       previousRcAccumulatedKop: 490_000_000,
+      separateRcBase: true,
     });
 
     // База РК: 100 000 × 13% + 100 000 × 15% = 28 000.
@@ -397,6 +399,7 @@ describe("regional-coefficient: отдельная база НДФЛ для ча
     // gross 130 000 ₽, накоплено 4,9 млн – вся сумма по шкале 2024.
     const result = calculateNdflForPayment(13_000_000, 490_000_000, 2024, {
       rcKop: 3_000_000,
+      separateRcBase: false,
     });
 
     expect(result.ndfl).toBe(1_750_000);
@@ -409,7 +412,7 @@ describe("regional-coefficient: отдельная база НДФЛ для ча
 
     const y2025 = calculateNdflForPayment(10_000_000, 0, 2025, {
       rcKop,
-      rcBaseFromYear: 2026,
+      separateRcBase: false,
     });
     expect(y2025.ndfl).toBe(1_300_000);
     expect(y2025.newAccumulatedIncome).toBe(10_000_000);
@@ -417,7 +420,7 @@ describe("regional-coefficient: отдельная база НДФЛ для ча
 
     const y2026 = calculateNdflForPayment(10_000_000, 0, 2026, {
       rcKop,
-      rcBaseFromYear: 2026,
+      separateRcBase: true,
     });
     expect(y2026.ndfl).toBe(1_300_000);
     expect(y2026.newAccumulatedIncome).toBe(7_692_308);
