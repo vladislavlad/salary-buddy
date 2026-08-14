@@ -9,8 +9,8 @@ function validatePercent(percent: number): Result<null> {
   if (percent < 0) {
     return { ok: false, error: "Коэффициент не может быть отрицательным" };
   }
-  if (percent > 200) {
-    return { ok: false, error: "Коэффициент не может превышать 200%" };
+  if (percent > 100) {
+    return { ok: false, error: "Коэффициент не может превышать 100%" };
   }
   return { ok: true, value: null };
 }

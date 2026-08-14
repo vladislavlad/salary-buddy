@@ -38,6 +38,7 @@ export interface Payment {
   ndfl: number; // итоговый НДФЛ = сумма всех элементов ndfls, копейки (0 для доплаты)
   net: number; // на руки, копейки (рассчитан от fact если есть, иначе от gross)
   yearToDateGross: number; // накопленный gross с начала года после этой выплаты, копейки
+  yearToDateRcGross?: number; // накопленная часть РК с начала года после этой выплаты, копейки (отдельная база НДФЛ)
   month?: number; // месяц выплаты (1-12, нет у премий)
 }
 
@@ -55,5 +56,6 @@ export const PaymentSchema = z.object({
   ndfl: z.number(),
   net: z.number(),
   yearToDateGross: z.number(),
+  yearToDateRcGross: z.number().optional(),
   month: z.number().optional(),
 });

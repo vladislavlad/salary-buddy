@@ -1,9 +1,16 @@
-import type { CalendarData, SickLeave, SickLeaveSettings } from "@/shared/types";
+import type {
+  CalendarData,
+  RegionalCoefficientChange,
+  SickLeave,
+  SickLeaveSettings,
+} from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 import { localDate as ld } from "@/shared/types/local-date";
 import { findPreviousWorkday, isDayOff } from "@/features/calendar/model/calendar";
 import type { RawEvent, MonthPaymentDates } from "./types";
 import type { IncomeRecord } from "./vacation";
+import { getCoefficientForDate } from "./regionalCoefficient";
+import { getSickLeaveLimits } from "./sickLeaveLimits";
 
 // Половина месяца для выплат работодателя: "a" – дни 1-15 (аванс), "b" – дни 16+ (зарплата).
 type MonthHalf = "a" | "b";
@@ -28,10 +35,6 @@ function resolveEmployerPayDate(
   const target = half === "a" ? entry?.advanceDate : entry?.salaryDate;
   return target ?? fallback;
 }
-
-// Лимиты СДЗ 2026 (копейки)
-const MAX_AVG_DAILY_EARNINGS_KOP = 682_740; // 6 827,40 ₽/день
-const MIN_AVG_DAILY_EARNINGS_KOP = 89_073; // 890,73 ₽/день
 
 // Макс. пособие по производственной травме в месяц: 4 × макс. ежемесячной страховой выплаты (ст. 9 ФЗ-125)
 const WORK_INJURY_MONTHLY_CAP_KOP = 50_315_664; // 503 156,64 ₽
@@ -66,13 +69,32 @@ function getIncomeForPeriod(
   return total;
 }
 
+// Сумма частей РК в доходе расчётного периода (тот же период, что и getIncomeForPeriod).
+function getRcForPeriod(
+  fromYear: number,
+  toYear: number,
+  records: IncomeRecord[],
+): number {
+  let total = 0;
+  for (const r of records) {
+    const y = r.accrualDate.year;
+    if (y >= fromYear && y < toYear) {
+      total += r.rcKop ?? 0;
+    }
+  }
+  return total;
+}
+
 function calculateAvgDailyEarnings(
   sickLeave: SickLeave,
   incomeRecords: IncomeRecord[],
   currentSalaryKop: number,
-): { avgDailyEarningsKop: number; usedFallback: boolean } {
+  sortedCoefficients?: readonly RegionalCoefficientChange[],
+): { avgDailyEarningsKop: number; usedFallback: boolean; rcShare: number } {
   const slYear = sickLeave.startDate.year;
   const fromYear = slYear - 2;
+  const { minAvgDailyEarningsKop, maxAvgDailyEarningsKop } =
+    getSickLeaveLimits(slYear);
 
   const totalIncomeKop = getIncomeForPeriod(fromYear, slYear, incomeRecords);
 
@@ -82,19 +104,35 @@ function calculateAvgDailyEarnings(
   if (totalIncomeKop > 0) {
     let avgDailyEarningsKop = Math.round(totalIncomeKop / 730);
     if (hasMaxCap) {
-      avgDailyEarningsKop = Math.min(MAX_AVG_DAILY_EARNINGS_KOP, avgDailyEarningsKop);
+      avgDailyEarningsKop = Math.min(maxAvgDailyEarningsKop, avgDailyEarningsKop);
     }
-    avgDailyEarningsKop = Math.max(MIN_AVG_DAILY_EARNINGS_KOP, avgDailyEarningsKop);
-    return { avgDailyEarningsKop, usedFallback: false };
+    avgDailyEarningsKop = Math.max(minAvgDailyEarningsKop, avgDailyEarningsKop);
+    // Доля РК в доходе расчётного периода – для выделения части РК пособия
+    // в отдельную базу НДФЛ (с 2026).
+    const totalRcKop = getRcForPeriod(fromYear, slYear, incomeRecords);
+    return {
+      avgDailyEarningsKop,
+      usedFallback: false,
+      rcShare: totalRcKop / totalIncomeKop,
+    };
   }
 
-  // Fallback: оклад × 24 / 730
-  let avgDailyEarningsKop = Math.round((currentSalaryKop * 24) / 730);
+  // Fallback: оклад × (1 + РК) × 24 / 730 (аналог МРОТ с учётом РК, ст. 14 ФЗ-255).
+  const pct = sortedCoefficients
+    ? getCoefficientForDate(sickLeave.startDate, sortedCoefficients)
+    : 0;
+  const effectiveSalaryKop =
+    pct > 0 ? Math.round(currentSalaryKop * (1 + pct / 100)) : currentSalaryKop;
+  let avgDailyEarningsKop = Math.round((effectiveSalaryKop * 24) / 730);
   if (hasMaxCap) {
-    avgDailyEarningsKop = Math.min(MAX_AVG_DAILY_EARNINGS_KOP, avgDailyEarningsKop);
+    avgDailyEarningsKop = Math.min(maxAvgDailyEarningsKop, avgDailyEarningsKop);
   }
-  avgDailyEarningsKop = Math.max(MIN_AVG_DAILY_EARNINGS_KOP, avgDailyEarningsKop);
-  return { avgDailyEarningsKop, usedFallback: true };
+  avgDailyEarningsKop = Math.max(minAvgDailyEarningsKop, avgDailyEarningsKop);
+  return {
+    avgDailyEarningsKop,
+    usedFallback: true,
+    rcShare: pct > 0 ? pct / (100 + pct) : 0,
+  };
 }
 
 // Ключ для группировки дней по году-месяцу: "YYYY-MM".
@@ -107,6 +145,7 @@ export function calculateSickLeavePayments(
   incomeRecords: IncomeRecord[],
   currentSalaryKop: number,
   paymentDatesByMonth: Map<string, MonthPaymentDates> = new Map(),
+  sortedCoefficients?: readonly RegionalCoefficientChange[],
 ): RawEvent[] {
   if (sickLeaves.length === 0) return [];
 
@@ -164,10 +203,11 @@ export function calculateSickLeavePayments(
   }
 
   for (const sl of sickLeaves) {
-    const { avgDailyEarningsKop } = calculateAvgDailyEarnings(
+    const { avgDailyEarningsKop, rcShare } = calculateAvgDailyEarnings(
       sl,
       incomeRecords,
       currentSalaryKop,
+      sortedCoefficients,
     );
 
     const experiencePercent = getExperiencePercent(sl.reason, sl.experience);
@@ -217,6 +257,11 @@ export function calculateSickLeavePayments(
             type: "sick-leave",
             grossKop,
             salaryAmountKop: 0,
+            // Часть РК пособия – пропорционально доле РК в СДЗ (для отдельной базы НДФЛ с 2026).
+            rcKop:
+              rcShare > 0
+                ? Math.round(grossKop * rcShare) || undefined
+                : undefined,
           });
         }
       }
@@ -259,9 +304,10 @@ export function calculateSickLeavePayments(
       // Доплата от работодателя – только за рабочие дни. Платится вместе с
       // авансом/зарплатой → разносим по половинам месяца (1-15 → аванс, 16+ → зарплата).
       if (settings.enableTopUp) {
-        const topUpDays = allocatedTopUp.get(sl.id)?.get(ymKey) ?? 0;
-        if (topUpDays > 0 && dailyBenefitKop > 0) {
-          const topUpByHalf = new Map<MonthHalf, number>();
+          const topUpDays = allocatedTopUp.get(sl.id)?.get(ymKey) ?? 0;
+          if (topUpDays > 0 && dailyBenefitKop > 0) {
+            const topUpByHalf = new Map<MonthHalf, number>();
+            const topUpRcByHalf = new Map<MonthHalf, number>();
 
           // Кэшируем рабочие дни по месяцам.
           const monthWorkdaysCache = new Map<string, number>();
@@ -290,17 +336,37 @@ export function calculateSickLeavePayments(
               monthWorkdaysCache.set(cacheKey, monthWorkdays);
             }
 
+            // Дневной оклад с учётом РК, действующего на дату дня больничного.
+            const dayPct = sortedCoefficients
+              ? getCoefficientForDate(dayDate, sortedCoefficients)
+              : 0;
+            const effectiveSalaryKop =
+              dayPct > 0
+                ? Math.round(currentSalaryKop * (1 + dayPct / 100))
+                : currentSalaryKop;
             const dailySalaryKop =
               monthWorkdays > 0
-                ? Math.round(currentSalaryKop / monthWorkdays)
+                ? Math.round(effectiveSalaryKop / monthWorkdays)
+                : 0;
+            const dailySalaryRcKop =
+              dayPct > 0
+                ? Math.round((dailySalaryKop * dayPct) / (100 + dayPct))
                 : 0;
             const topUpPerDay = Math.max(0, dailySalaryKop - dailyBenefitKop);
+            // Часть РК доплаты = часть РК дневного оклада за вычетом части РК пособия.
+            const benefitRcKop = Math.round(dailyBenefitKop * rcShare);
+            const topUpRcPerDay = Math.max(0, dailySalaryRcKop - benefitRcKop);
             const half = monthHalf(dayDate);
             topUpByHalf.set(half, (topUpByHalf.get(half) ?? 0) + topUpPerDay);
+            topUpRcByHalf.set(
+              half,
+              (topUpRcByHalf.get(half) ?? 0) + topUpRcPerDay,
+            );
           }
 
           for (const [half, grossKop] of topUpByHalf) {
             if (grossKop <= 0) continue;
+            const rcKop = topUpRcByHalf.get(half) ?? 0;
             events.push({
               sourceId: `${sl.id}:topup:${ymKey}:${half}`,
               date: resolveEmployerPayDate(
@@ -313,6 +379,7 @@ export function calculateSickLeavePayments(
               type: "sick-leave-topup",
               grossKop,
               salaryAmountKop: 0,
+              rcKop: rcKop > 0 ? rcKop : undefined,
             });
           }
         }

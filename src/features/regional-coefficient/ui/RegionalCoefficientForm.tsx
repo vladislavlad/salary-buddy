@@ -21,7 +21,7 @@ export function RegionalCoefficientForm({
   );
   const [percent, setPercent] = useState(initial?.percent ?? 0);
 
-  const canSave = date !== null && percent >= 0 && percent <= 200;
+  const canSave = percent >= 0 && percent <= 100;
   const isEdit = !!initial;
 
   return (
@@ -48,7 +48,7 @@ export function RegionalCoefficientForm({
           label="Процент (%)"
           value={percent}
           min={0}
-          max={200}
+          max={100}
           onChange={setPercent}
         />
       </div>
@@ -57,10 +57,7 @@ export function RegionalCoefficientForm({
           size="sm"
           className="w-full"
           disabled={!canSave}
-          onClick={() => {
-            if (!date) return;
-            onSave({ id: initial?.id, effectiveDate: date, percent });
-          }}
+          onClick={() => onSave({ id: initial?.id, effectiveDate: date, percent })}
         >
           <Check className="w-3.5 h-3.5" />
           {isEdit ? "Сохранить" : "Добавить"}

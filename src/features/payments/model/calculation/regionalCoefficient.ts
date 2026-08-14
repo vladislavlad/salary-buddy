@@ -24,3 +24,9 @@ export function getCoefficientForDate(
   }
   return result;
 }
+
+// Часть gross, относящаяся к районному коэффициенту: gross × pct / (100 + pct).
+export function rcPartOfGrossKop(grossKop: number, percent: number): number {
+  if (percent <= 0 || grossKop <= 0) return 0;
+  return Math.round((grossKop * percent) / (100 + percent));
+}

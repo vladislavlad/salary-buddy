@@ -1,5 +1,5 @@
 import type { Bonus } from "@/shared/types/bonus";
-import type { Payment } from "@/shared/types";
+import type { Payment, PaymentType } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 import { localDate as ld } from "@/shared/types/local-date";
 import { Temporal } from "@js-temporal/polyfill";
@@ -25,7 +25,11 @@ import type {
 } from "./types";
 import { sortSalaryChanges, getSalaryForDate } from "./salary";
 import { sortSurchargeChanges, calculatePeriodSurcharge } from "./surcharge";
-import { sortRegionalCoefficientChanges, getCoefficientForDate } from "./regionalCoefficient";
+import {
+  sortRegionalCoefficientChanges,
+  getCoefficientForDate,
+  rcPartOfGrossKop,
+} from "./regionalCoefficient";
 import {
   calculatePeriodGross,
   calculateByWorkedDays,
@@ -147,6 +151,7 @@ export function buildSalaryEvents(
         totalWorkdaysInMonth,
         calendarData,
         sortedSurchargeChanges,
+        sortedRegionalCoefficientChanges,
       );
 
       // Определяем даты выплат – advancePaymentDay может быть больше daysInMonth
@@ -228,6 +233,7 @@ export function buildSalaryEvents(
           grossKop: advanceGrossKop,
           salaryAmountKop: monthSalaryKop,
           regionalCoefficientPercent: monthCoeffPercent > 0 ? monthCoeffPercent : undefined,
+          rcKop: rcPartOfGrossKop(advanceGrossKop, monthCoeffPercent) || undefined,
           month,
           accrualDate,
         });
@@ -242,6 +248,7 @@ export function buildSalaryEvents(
           grossKop: salaryGrossKop,
           salaryAmountKop: monthSalaryKop,
           regionalCoefficientPercent: monthCoeffPercent > 0 ? monthCoeffPercent : undefined,
+          rcKop: rcPartOfGrossKop(salaryGrossKop, monthCoeffPercent) || undefined,
           month,
           accrualDate,
         });
@@ -253,6 +260,7 @@ export function buildSalaryEvents(
             type: "surcharge",
             grossKop: salarySurchargeKop,
             salaryAmountKop: 0,
+            rcKop: rcPartOfGrossKop(salarySurchargeKop, monthCoeffPercent) || undefined,
             month,
             accrualDate,
           });
@@ -267,6 +275,7 @@ export function buildSalaryEvents(
 export function addBonusEvents(
   bonuses: Bonus[],
   sortedChanges: BuildSalaryParams["sortedChanges"],
+  sortedCoefficients: BuildSalaryParams["sortedRegionalCoefficientChanges"],
   events: RawEvent[],
   minYear: number,
   maxYear: number,
@@ -278,14 +287,26 @@ export function addBonusEvents(
     const salaryOnDateKop = getSalaryForDate(bonusDate, sortedChanges);
     if (b.type === "salaries" && salaryOnDateKop <= 0) continue;
 
-    const grossKop =
+    const baseGrossKop =
       b.type === "salaries" ? b.amount * salaryOnDateKop : b.amount;
+    // Премия установлена без учёта РК – коэффициент применяется к базовой сумме.
+    const percent = sortedCoefficients
+      ? getCoefficientForDate(bonusDate, sortedCoefficients)
+      : 0;
+    const grossKop =
+      percent > 0 ? Math.round(baseGrossKop * (1 + percent / 100)) : baseGrossKop;
     events.push({
       sourceId: b.id,
       date: bonusDate,
       type: "bonus",
       grossKop,
       salaryAmountKop: b.type === "salaries" ? salaryOnDateKop : 0,
+      ...(percent > 0
+        ? {
+            regionalCoefficientPercent: percent,
+            rcKop: rcPartOfGrossKop(grossKop, percent) || undefined,
+          }
+        : {}),
       // Премия начисляется в месяце своей даты.
       accrualDate: ld(bonusDate.year, bonusDate.month, 1),
     });
@@ -314,6 +335,7 @@ export function stabilizeVacations(
         accrualDate: e.accrualDate ?? e.date,
         grossKop: e.grossKop,
         factKop: factBySource.get(e.sourceId),
+        rcKop: e.rcKop,
       }));
 
     const newVacationEvents: RawEvent[] = [];
@@ -347,6 +369,7 @@ export function stabilizeVacations(
           type: "vacation",
           grossKop: result.grossKop,
           salaryAmountKop: 0,
+          rcKop: result.rcKop,
           month: v.startDate.month,
         });
       }
@@ -392,6 +415,7 @@ export function calculateSickLeavePhase(
     sickLeaveSettings,
     calendarsByYear,
     sortedChanges,
+    sortedRegionalCoefficientChanges,
     paymentDatesByMonth,
     factBySource,
   } = params;
@@ -405,6 +429,7 @@ export function calculateSickLeavePhase(
     accrualDate: e.accrualDate ?? e.date,
     grossKop: e.grossKop,
     factKop: factBySource.get(e.sourceId),
+    rcKop: e.rcKop,
   }));
 
   const sickLeaveEvents = calculateSickLeavePayments(
@@ -413,14 +438,23 @@ export function calculateSickLeavePhase(
     calendarsByYear,
     incomeForSickLeave,
     sortedChanges.length > 0 && sickLeaves.length > 0
-      // Берём оклад на дату начала первого больничного (для fallback СДЗ).
+      // Берём базовый оклад на дату начала первого больничного (для fallback СДЗ).
       ? getSalaryForDate(sickLeaves[0]!.startDate, sortedChanges)
       : 0,
     paymentDatesByMonth,
+    sortedRegionalCoefficientChanges,
   );
 
   return [...nonSickLeaveEvents, ...sickLeaveEvents];
 }
+
+// Выплаты, рассчитанные из среднего заработка – отдельная база РК действует с 2026
+// (абз. 2 п. 6.2 ст. 210 НК РФ); для аванса/зарплаты/премии – с 2025.
+const AVERAGE_EARNINGS_PAYMENT_TYPES = new Set<PaymentType>([
+  "vacation",
+  "sick-leave",
+  "sick-leave-topup",
+]);
 
 export function buildPaymentsWithNdfl(
   params: NdflPhaseParams,
@@ -436,6 +470,7 @@ export function buildPaymentsWithNdfl(
   // Если есть recalcFrom – сохраняем платежи до этой даты из existingPayments
   let preservedPreRecalc: Payment[] = [];
   let initialAccumulatedIncomeKop = 0;
+  let initialRcAccumulatedIncomeKop = 0;
   let startYear = minYear - 1;
 
   if (recalcFrom && existingPayments.length > 0) {
@@ -444,7 +479,10 @@ export function buildPaymentsWithNdfl(
     );
     if (preservedPreRecalc.length > 0) {
       const lastPre = preservedPreRecalc[preservedPreRecalc.length - 1]!;
-      initialAccumulatedIncomeKop = lastPre.yearToDateGross;
+      initialRcAccumulatedIncomeKop = lastPre.yearToDateRcGross ?? 0;
+      // yearToDateGross хранит полный gross (основная база + часть РК).
+      initialAccumulatedIncomeKop =
+        lastPre.yearToDateGross - initialRcAccumulatedIncomeKop;
       startYear = lastPre.date.year;
     }
   }
@@ -453,6 +491,7 @@ export function buildPaymentsWithNdfl(
 
   const recalculatedPayments: Payment[] = [];
   let accumulatedIncomeKop = initialAccumulatedIncomeKop;
+  let rcAccumulatedIncomeKop = initialRcAccumulatedIncomeKop;
   let currentYear = startYear;
   const idCounter = new Map<string, number>();
 
@@ -465,6 +504,7 @@ export function buildPaymentsWithNdfl(
 
     if (eventYear !== currentYear) {
       accumulatedIncomeKop = 0;
+      rcAccumulatedIncomeKop = 0;
       currentYear = eventYear;
     }
 
@@ -482,7 +522,8 @@ export function buildPaymentsWithNdfl(
         ndfls: [],
         ndfl: 0,
         net: effectiveGrossKop,
-        yearToDateGross: accumulatedIncomeKop,
+        yearToDateGross: accumulatedIncomeKop + rcAccumulatedIncomeKop,
+        yearToDateRcGross: rcAccumulatedIncomeKop,
         month: event.month,
       });
       continue;
@@ -501,15 +542,31 @@ export function buildPaymentsWithNdfl(
         ndfls: [],
         ndfl: 0,
         net: effectiveGrossKop,
-        yearToDateGross: accumulatedIncomeKop,
+        yearToDateGross: accumulatedIncomeKop + rcAccumulatedIncomeKop,
+        yearToDateRcGross: rcAccumulatedIncomeKop,
       });
       continue;
     }
+
+    // Часть РК пересчитывается пропорционально, если подтверждён фактический gross.
+    const eventRcKop = event.rcKop ?? 0;
+    const rcKop =
+      eventRcKop > 0 && event.grossKop > 0
+        ? Math.round((effectiveGrossKop * eventRcKop) / event.grossKop)
+        : 0;
+    const rcBaseFromYear = AVERAGE_EARNINGS_PAYMENT_TYPES.has(event.type)
+      ? 2026
+      : 2025;
 
     const ndflResult = calculateNdflForPayment(
       effectiveGrossKop,
       accumulatedIncomeKop,
       currentYear,
+      {
+        rcKop,
+        previousRcAccumulatedKop: rcAccumulatedIncomeKop,
+        rcBaseFromYear,
+      },
     );
 
     const payment: Payment = {
@@ -524,12 +581,15 @@ export function buildPaymentsWithNdfl(
       ndfls: ndflResult.breakdown,
       ndfl: ndflResult.ndfl,
       net: effectiveGrossKop - ndflResult.ndfl,
-      yearToDateGross: ndflResult.newAccumulatedIncome,
+      yearToDateGross:
+        ndflResult.newAccumulatedIncome + ndflResult.newRcAccumulatedIncome,
+      yearToDateRcGross: ndflResult.newRcAccumulatedIncome,
       ...(event.month !== undefined ? { month: event.month } : {}),
     };
 
     recalculatedPayments.push(payment);
     accumulatedIncomeKop = ndflResult.newAccumulatedIncome;
+    rcAccumulatedIncomeKop = ndflResult.newRcAccumulatedIncome;
   }
 
   return [...preservedPreRecalc, ...recalculatedPayments];
@@ -573,7 +633,14 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
     maxYear,
   });
 
-  addBonusEvents(bonuses, sortedChanges, events, minYear, maxYear);
+  addBonusEvents(
+    bonuses,
+    sortedChanges,
+    sortedRegionalCoefficientChanges,
+    events,
+    minYear,
+    maxYear,
+  );
 
   // Карта фактов из существующих платежей – учитывается в доходе для отпускных и НДФЛ
   const factBySource = new Map<string, number>();
