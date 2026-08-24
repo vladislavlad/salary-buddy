@@ -25,6 +25,15 @@ export interface YearSettings {
   rcSeparateBase: RcSeparateBase;
 }
 
+// Шкала НДФЛ 2021–2024 (446-ФЗ, действует с 01.01.2021): 13% до 5 млн ₽, 15% свыше.
+const NDFL_2021_2023: NdflBrackets = [
+  [500_000_000, 13], // 5 000 000 ₽
+  [Infinity, 15],
+];
+
+// Шкала НДФЛ 2020: плоская 13%.
+const NDFL_SINGLE_2020: NdflBrackets = [[Infinity, 13]];
+
 // Шкала НДФЛ 2025–2027 (ФЗ-176): 13/15/18/20/22.
 const NDFL_PROGRESSIVE_2025: NdflBrackets = [
   [240_000_000, 13], // 2 400 000 ₽
@@ -37,13 +46,36 @@ const NDFL_PROGRESSIVE_2025: NdflBrackets = [
 // Строка года может быть частичной: настройка, ещё не установленная
 // нормативным актом, опускается и разрешается из ближайшего предыдущего года.
 const YEAR_SETTINGS: Record<number, Partial<YearSettings>> = {
+  // Первая строка – полная (обход resolveField начинается с неё).
+  2020: {
+    mrotKop: 1_213_000,
+    workInjuryMonthlyBenefitKop: 7_960_238, // постановление Правительства РФ от 29.01.2020 № 61
+    ndflBrackets: NDFL_SINGLE_2020,
+    rcSeparateBase: { salary: false, averageEarnings: false },
+  },
+  2021: {
+    mrotKop: 1_279_200,
+    workInjuryMonthlyBenefitKop: 8_350_290, // постановление Правительства РФ от 28.01.2021 № 73
+    ndflBrackets: NDFL_2021_2023,
+    rcSeparateBase: { salary: false, averageEarnings: false },
+  },
+  2022: {
+    // МРОТ на 01.01.2022; внутригодовое повышение (с 01.06.2022 – 15 279 ₽) не учитывается.
+    mrotKop: 1_389_000,
+    workInjuryMonthlyBenefitKop: 9_051_714, // постановление Правительства РФ от 27.01.2022 № 57
+    ndflBrackets: NDFL_2021_2023,
+    rcSeparateBase: { salary: false, averageEarnings: false },
+  },
+  2023: {
+    mrotKop: 1_624_200,
+    workInjuryMonthlyBenefitKop: 10_128_868, // постановление Правительства РФ от 30.01.2023 № 119
+    ndflBrackets: NDFL_2021_2023,
+    rcSeparateBase: { salary: false, averageEarnings: false },
+  },
   2024: {
     mrotKop: 1_924_200,
     workInjuryMonthlyBenefitKop: 10_878_404,
-    ndflBrackets: [
-      [500_000_000, 13], // 5 000 000 ₽
-      [Infinity, 15],
-    ],
+    ndflBrackets: NDFL_2021_2023,
     rcSeparateBase: { salary: false, averageEarnings: false },
   },
   2025: {
@@ -70,6 +102,10 @@ const YEAR_SETTINGS: Record<number, Partial<YearSettings>> = {
 // Для лимитов СДЗ года N нужны базы (N-1) и (N-2), поэтому серия начинается
 // раньше, чем таблица настроек.
 const CONTRIBUTION_BASE_BY_YEAR: Partial<Record<number, number>> = {
+  2018: 102_000_000,
+  2019: 115_000_000,
+  2020: 129_240_000,
+  2021: 156_500_000,
   2022: 156_000_000,
   2023: 191_700_000,
   2024: 222_500_000,
@@ -83,6 +119,43 @@ export const RC_BASE_BRACKETS: NdflBrackets = [
   [500_000_000, 13],
   [Infinity, 15],
 ];
+
+/** Официальные праздники РФ (ст. 112 ТК РФ): [месяц, день]. */
+const STATUTORY_HOLIDAYS: [number, number][] = [
+  [1, 1],
+  [1, 2],
+  [1, 3],
+  [1, 4],
+  [1, 5],
+  [1, 6],
+  [1, 8],
+  [2, 23],
+  [3, 8],
+  [5, 1],
+  [5, 9],
+  [6, 12],
+  [11, 4],
+];
+
+// Праздничные дни по годам (ст. 112 ТК РФ, один список на все годы) –
+// накладываются поверх календаря провайдера кодом 8.
+const HOLIDAYS_BY_YEAR: Record<number, [number, number][]> = {
+  2020: STATUTORY_HOLIDAYS,
+  2021: STATUTORY_HOLIDAYS,
+  2022: STATUTORY_HOLIDAYS,
+  2023: STATUTORY_HOLIDAYS,
+  2024: STATUTORY_HOLIDAYS,
+  2025: STATUTORY_HOLIDAYS,
+  2026: STATUTORY_HOLIDAYS,
+  2027: STATUTORY_HOLIDAYS,
+};
+
+/** Список праздничных дней года, [месяц, день]; годы вне таблицы – через clamp. */
+export function getYearHolidays(year: number): [number, number][] {
+  // Fallback на STATUTORY_HOLIDAYS: добавление нового года в YEAR_SETTINGS
+  // без строки в HOLIDAYS_BY_YEAR не должно ломать загрузку календаря.
+  return HOLIDAYS_BY_YEAR[clampYear(year)] ?? STATUTORY_HOLIDAYS;
+}
 
 function sortedKeys(table: Record<number, unknown>): number[] {
   return Object.keys(table)

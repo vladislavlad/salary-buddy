@@ -76,7 +76,11 @@ export {
 } from "./payment";
 
 // Calendar
-export { type CalendarData } from "./calendar";
+export {
+  CalendarSettingsSchema,
+  type CalendarSettings,
+  type CalendarData,
+} from "./calendar";
 
 // Regional Coefficient
 export {

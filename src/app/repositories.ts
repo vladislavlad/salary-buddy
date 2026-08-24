@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { LocalStorageRepository } from "@/shared/repository/LocalStorageRepository";
+import { LocalStorageCalendarSettingsRepository } from "@/features/calendar/repository/LocalStorageCalendarSettingsRepository";
 import { LocalStorageSalaryPaymentSettingsRepository } from "@/features/salary-payment-settings/repository/LocalStorageSalaryPaymentSettingsRepository";
 import { LocalStorageSickLeaveSettingsRepository } from "@/features/sick-leave/repository/LocalStorageSickLeaveSettingsRepository";
 import { BonusSchema, PaymentSchema, RegionalCoefficientChangeSchema, SalarySchema, SickLeaveSchema, SurchargeChangeSchema, VacationSchema } from "@/shared/types";
@@ -12,6 +13,8 @@ export const paymentsRepository = new LocalStorageRepository(
   "salary-buddy-payments",
   z.array(PaymentSchema) as z.ZodType<z.infer<typeof PaymentSchema>[]>,
 );
+export const calendarSettingsRepository =
+  new LocalStorageCalendarSettingsRepository();
 export const salaryPaymentSettingsRepository =
   new LocalStorageSalaryPaymentSettingsRepository();
 export const salaryRepository = new LocalStorageRepository(

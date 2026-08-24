@@ -7,15 +7,19 @@ const ISDAYOFF_BASE_URL = "https://isdayoff.ru/api/getdata";
 /** Разделяет официальные праздники (код 8) и выходные (код 1) в ответе API. */
 const SEPARATE_HOLIDAY_AND_WEEKEND = 1;
 
+/** Выделяет ковидные (карантинные) дни отдельным кодом 4 в ответе API. */
+const SEPARATE_CORONAVIRUS_DAYS = 1;
+
 // Коды дней из isdayoff.ru:
 //   0 – рабочий день
 //   1 – нерабочий день (выходной)
 //   2 – сокращённый рабочий день
+//   4 – ковидный (карантинный) день
 //   8 – официальный праздник
 
 /** Загружает календарь из isdayoff.ru. Возвращает `null`, если API не содержит данных за год (строка из одних нулей). */
 export async function isdayoffFetch(year: number): Promise<CalendarData | null> {
-  const url = `${ISDAYOFF_BASE_URL}?year=${year}&cc=ru&holiday=${SEPARATE_HOLIDAY_AND_WEEKEND}`;
+  const url = `${ISDAYOFF_BASE_URL}?year=${year}&cc=ru&holiday=${SEPARATE_HOLIDAY_AND_WEEKEND}&covid=${SEPARATE_CORONAVIRUS_DAYS}`;
   const response = await fetch(url);
 
   if (!response.ok) {

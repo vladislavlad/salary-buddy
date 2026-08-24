@@ -3,6 +3,7 @@ import { ExportImportRepositoriesProvider } from "@/features/import-export/model
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import { BonusesProvider } from "@/features/bonus/model/BonusesProvider";
 import { CalendarProvider } from "@/features/calendar/model/CalendarProvider";
+import { CalendarSettingsProvider } from "@/features/calendar/model/CalendarSettingsProvider";
 import { PaymentsProvider } from "@/features/payments/model/PaymentsProvider";
 import { RegionalCoefficientProvider } from "@/features/regional-coefficient/model/RegionalCoefficientProvider";
 import { SalaryPaymentSettingsProvider } from "@/features/salary-payment-settings/model/SalaryPaymentSettingsProvider";
@@ -37,27 +38,29 @@ const exportImportRepos: ExportImportRepositories = {
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <ExportImportRepositoriesProvider value={exportImportRepos}>
-      <CalendarProvider>
-        <SalaryPaymentSettingsProvider>
-          <SalaryProvider>
-            <SurchargeProvider>
-              <RegionalCoefficientProvider>
-                <BonusesProvider>
-                  <VacationsProvider>
-                    <SickLeavesProvider>
-                      <PaymentsProvider>
-                        <TooltipProvider delayDuration={200}>
-                          {children}
-                        </TooltipProvider>
-                      </PaymentsProvider>
-                    </SickLeavesProvider>
-                  </VacationsProvider>
-                </BonusesProvider>
-              </RegionalCoefficientProvider>
-            </SurchargeProvider>
-          </SalaryProvider>
-        </SalaryPaymentSettingsProvider>
-      </CalendarProvider>
+      <CalendarSettingsProvider>
+        <CalendarProvider>
+          <SalaryPaymentSettingsProvider>
+            <SalaryProvider>
+              <SurchargeProvider>
+                <RegionalCoefficientProvider>
+                  <BonusesProvider>
+                    <VacationsProvider>
+                      <SickLeavesProvider>
+                        <PaymentsProvider>
+                          <TooltipProvider delayDuration={200}>
+                            {children}
+                          </TooltipProvider>
+                        </PaymentsProvider>
+                      </SickLeavesProvider>
+                    </VacationsProvider>
+                  </BonusesProvider>
+                </RegionalCoefficientProvider>
+              </SurchargeProvider>
+            </SalaryProvider>
+          </SalaryPaymentSettingsProvider>
+        </CalendarProvider>
+      </CalendarSettingsProvider>
     </ExportImportRepositoriesProvider>
   );
 }

@@ -1,7 +1,9 @@
 import type { CalendarData } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
+import { localDate as ld } from "@/shared/types/local-date";
 import { Temporal } from "@js-temporal/polyfill";
 import { localDateToCalendarKey } from "@/shared/lib/utils";
+import { getYearHolidays } from "@/shared/lib/yearSettings";
 import { generateFallbackCalendar } from "./calendar-fallback";
 import { isdayoffFetch } from "./isdayoff-fetch";
 
@@ -11,13 +13,34 @@ export interface FetchCalendarResult {
   isFallback: boolean;
 }
 
-/** Загружает календарь за год: сначала isdayoff.ru, при отсутствии данных — fallback-генератор. */
+/**
+ * Загружает календарь за год: сначала isdayoff.ru, при отсутствии данных — fallback-генератор.
+ * Пост-обработка: в режиме «без учёта ковидных дней» код 4 заменяется на 0,
+ * затем праздники года (yearSettings) накладываются кодом 8.
+ */
 export async function fetchCalendar(
   year: number,
+  accountForCoronavirus: boolean,
 ): Promise<FetchCalendarResult> {
   const apiData = await isdayoffFetch(year);
-  if (apiData) return { data: apiData, isFallback: false };
-  return { data: generateFallbackCalendar(year), isFallback: true };
+  const data = apiData ?? generateFallbackCalendar(year);
+
+  if (!accountForCoronavirus) {
+    for (const [key, code] of data) {
+      if (code === 4) data.set(key, 0);
+    }
+  }
+
+  applyStatutoryHolidays(data, year);
+
+  return { data, isFallback: apiData === null };
+}
+
+/** Накладывает праздники года (yearSettings) на календарь: код 8 независимо от кода провайдера. */
+function applyStatutoryHolidays(data: CalendarData, year: number): void {
+  for (const [month, day] of getYearHolidays(year)) {
+    data.set(localDateToCalendarKey(ld(year, month, day)), 8);
+  }
 }
 
 /** Проверяет, является ли дата выходным или праздником (по данным API). */

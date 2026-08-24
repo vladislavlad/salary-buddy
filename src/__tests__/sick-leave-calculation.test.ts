@@ -186,8 +186,28 @@ describe("sick-leave-calculation", () => {
       });
     });
 
+    it("getSickLeaveLimits: значения 2020–2023", () => {
+      expect(getSickLeaveLimits(2020)).toEqual({
+        minAvgDailyEarningsKop: 39_879, // 12 130 × 24 / 730
+        maxAvgDailyEarningsKop: 297_260, // (1 020 000 + 1 150 000) / 730
+      });
+      expect(getSickLeaveLimits(2021)).toEqual({
+        minAvgDailyEarningsKop: 42_056, // 12 792 × 24 / 730
+        maxAvgDailyEarningsKop: 334_575, // (1 150 000 + 1 292 400) / 730
+      });
+      expect(getSickLeaveLimits(2022)).toEqual({
+        minAvgDailyEarningsKop: 45_666, // 13 890 × 24 / 730
+        maxAvgDailyEarningsKop: 391_425, // (1 292 400 + 1 565 000) / 730
+      });
+      expect(getSickLeaveLimits(2023)).toEqual({
+        minAvgDailyEarningsKop: 53_398, // 16 242 × 24 / 730
+        maxAvgDailyEarningsKop: 428_082, // (1 560 000 + 1 565 000) / 730
+      });
+    });
+
     it("getSickLeaveLimits: годы вне таблицы – ближайший год", () => {
-      expect(getSickLeaveLimits(2023)).toEqual(getSickLeaveLimits(2024));
+      // 2018/2019 – clamp на 2020 (MIN_DISPLAY_YEAR), лимиты идентичны
+      expect(getSickLeaveLimits(2018)).toEqual(getSickLeaveLimits(2019));
       expect(getSickLeaveLimits(2028)).toEqual(getSickLeaveLimits(2027));
     });
 
