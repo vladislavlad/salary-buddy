@@ -1,13 +1,17 @@
 schema: spec-driven
 
 context: |
-  Salary Buddy – React SPA для расчёта дат и сумм выплат в РФ.
-  Бэкенда нет, данные хранятся в localStorage.
+  Tech stack: React 19 + TypeScript (строгий, без any) + Vite, TanStack Query, shadcn/ui + Tailwind CSS, zod, Vitest; Temporal Polyfill + date-fns для дат; pnpm.
+  Spec language: русский.
 
-  ## Tech stack
-  - TypeScript (строгий, без any), React, TanStack Query, zod, shadcn/ui
-  - Temporal Polyfill для работы с датами
-  - date-fns для форматирования в UI
+  Write every piece of prose in the spec language: the requirement statement, the requirement's own name after `Requirement:`, the scenario's name after `Scenario:`, the WHEN/THEN lines, the Purpose text – all of it.
+  Keep unchanged only these: the markers `## Purpose`, `## Requirements`, `### Requirement:`, `#### Scenario:`; the keywords SHALL, WHEN, THEN; and code identifiers – class, function, file and field names, enum values, API terms.
+  A marker is the marker alone. In `### Requirement: <name>` the part to keep is `### Requirement:` and `<name>` gets written in the spec language. Never leave a heading in English because the marker in front of it is English.
+
+  Writing style: Technical (precise, implementation-focused)
+  specStructure: flat
+
+  Salary Buddy – клиентский калькулятор выплат в РФ: авансы, зарплаты, премии, доплаты, отпускные, больничные, прогрессивный НДФЛ. Без бэкенда, данные в localStorage. Строит календарь выплат на год; пользователь может задать фактическую сумму платежа, что пересчитывает НДФЛ для последующих выплат.
 
   ## Архитектура по фичам
   Каждая фича в src/features/<feature>/ слоями:
@@ -47,3 +51,5 @@ rules:
     - Не описывать реализацию в коде: типы TS, импорты, архитектуру слоёв
     - Сценарии в формате GIVEN / WHEN / THEN
     - Язык – русский
+  tasks:
+    - Подзадачи, сгруппированные под высокими секциями

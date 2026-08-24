@@ -76,7 +76,19 @@ export {
 } from "./payment";
 
 // Calendar
-export { type CalendarData } from "./calendar";
+export {
+  CalendarSettingsSchema,
+  type CalendarSettings,
+  type CalendarData,
+} from "./calendar";
+
+// Regional Coefficient
+export {
+  RegionalCoefficientChangeSchema,
+  type RegionalCoefficientChange,
+  type RegionalCoefficientCreateRequest,
+  type RegionalCoefficientUpdateRequest,
+} from "./regionalCoefficient";
 
 // Export/Import
 export { ExportDataSchema, type ExportData } from "./exportImport";

@@ -7,6 +7,7 @@ import {
   HeartPulse,
   Umbrella,
   Download,
+  MapPin,
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader } from "@/shared/ui/card";
@@ -22,6 +23,7 @@ import { YearNavigator } from "@/features/calendar/ui/YearNavigator";
 import { BonusManager } from "@/features/bonus/ui/BonusManager";
 import { SickLeaveManager } from "@/features/sick-leave/ui/SickLeaveManager";
 import { VacationManager } from "@/features/vacation/ui/VacationManager";
+import { RegionalCoefficientManager } from "@/features/regional-coefficient/ui/RegionalCoefficientManager";
 import { useCalendar } from "@/features/calendar/hooks/useCalendar";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/shared/ui/tooltip";
 import { ThemeToggle } from "@/shared/ui/ThemeToggle";
@@ -35,7 +37,7 @@ import {
 } from "@/features/payments/hooks/usePaymentsHooks";
 import { useYearSummary } from "@/features/payments/hooks/useYearSummary";
 import { YearSummaryCards } from "@/features/payments/ui/YearSummaryCards";
-import { MIN_DISPLAY_YEAR, MAX_DISPLAY_YEAR } from "@/shared/lib/utils";
+import { MIN_DISPLAY_YEAR, MAX_DISPLAY_YEAR } from "@/shared/lib/yearSettings";
 import { AppProviders } from "@/app/AppProviders";
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -92,6 +94,10 @@ function AppContent() {
 
           <CollapsibleSection title="Доплаты" icon={Settings2}>
             <SurchargeManager />
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Районный коэффициент" icon={MapPin}>
+            <RegionalCoefficientManager />
           </CollapsibleSection>
 
           <CollapsibleSection title="Премии" icon={Plus}>
@@ -187,17 +193,6 @@ function AppContent() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className="w-3 h-3 rounded-full border"
-                    style={{
-                      backgroundColor: "var(--pay-sickleave-bg)",
-                      borderColor: "var(--pay-sickleave-border)",
-                    }}
-                  />
-                  <span>Больничный</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span
                     className="w-3 h-3 rounded-md border"
                     style={{
                       backgroundColor: "var(--vac-day-bg)",
@@ -205,6 +200,17 @@ function AppContent() {
                     }}
                   />
                   <span>Отпуск</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-3 h-3 rounded-full border"
+                    style={{
+                      backgroundColor: "var(--pay-sickleave-bg)",
+                      borderColor: "var(--pay-sickleave-border)",
+                    }}
+                  />
+                  <span>Больничный</span>
                 </div>
 
                 <div className="flex items-center gap-2">

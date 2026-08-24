@@ -31,12 +31,14 @@ export interface Payment {
   originalDate?: LocalDate; // исходная дата до смещения (нет у премий и доплат)
   type: PaymentType;
   salaryAmount: number; // оклад на момент выплаты, копейки (0 для отпускных, премий и доплат)
+  regionalCoefficientPercent?: number; // применённый районный коэффициент в % (опционально, для отображения)
   gross: number; // плановая сумма до НДФЛ, копейки (для доплаты – сумма без налога)
   fact?: number; // фактическая gross-сумма, копейки (если подтверждена)
   ndfls: TaxBracketBreakdown[]; // разбивка НДФЛ по ставкам [{ставка, размер}, ...]
   ndfl: number; // итоговый НДФЛ = сумма всех элементов ndfls, копейки (0 для доплаты)
   net: number; // на руки, копейки (рассчитан от fact если есть, иначе от gross)
   yearToDateGross: number; // накопленный gross с начала года после этой выплаты, копейки
+  yearToDateRcGross?: number; // накопленная часть РК с начала года после этой выплаты, копейки (отдельная база НДФЛ)
   month?: number; // месяц выплаты (1-12, нет у премий)
 }
 
@@ -47,11 +49,13 @@ export const PaymentSchema = z.object({
   originalDate: LocalDateSchema.optional(),
   type: z.enum(PAYMENT_TYPES),
   salaryAmount: z.number(),
+  regionalCoefficientPercent: z.number().optional(),
   gross: z.number(),
   fact: z.number().optional(),
   ndfls: z.array(z.object({ rate: z.number(), amount: z.number() })),
   ndfl: z.number(),
   net: z.number(),
   yearToDateGross: z.number(),
+  yearToDateRcGross: z.number().optional(),
   month: z.number().optional(),
 });

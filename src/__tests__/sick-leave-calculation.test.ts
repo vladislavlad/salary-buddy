@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { calculateSickLeavePayments } from "@/features/payments/model/calculation/sick-leave";
+import { getSickLeaveLimits } from "@/features/payments/model/calculation/sickLeaveLimits";
 import type { SickLeave, SickLeaveSettings } from "@/shared/types";
 import type { IncomeRecord } from "@/features/payments/model/calculation/vacation";
 import { localDate as ld } from "@/shared/types/local-date";
@@ -165,6 +166,141 @@ describe("sick-leave-calculation", () => {
       expect(sfrEvent).toBeDefined();
       // dailyBenefit = clamp(13, min=89_073) = 89_073 коп/день
       expect(sfrEvent!.grossKop).toBe(3 * 89_073);
+    });
+  });
+
+  describe("лимиты СДЗ по годам", () => {
+    it("getSickLeaveLimits: значения 2024–2026", () => {
+      // MIN = МРОТ × 24 / 730; MAX = (потолок (N-1) + потолок (N-2)) / 730.
+      expect(getSickLeaveLimits(2024)).toEqual({
+        minAvgDailyEarningsKop: 63_261, // 19 242 × 24 / 730
+        maxAvgDailyEarningsKop: 476_301, // (1 560 000 + 1 917 000) / 730
+      });
+      expect(getSickLeaveLimits(2025)).toEqual({
+        minAvgDailyEarningsKop: 73_775, // 22 440 × 24 / 730
+        maxAvgDailyEarningsKop: 567_397, // (1 917 000 + 2 225 000) / 730
+      });
+      expect(getSickLeaveLimits(2026)).toEqual({
+        minAvgDailyEarningsKop: 89_073, // 27 093 × 24 / 730
+        maxAvgDailyEarningsKop: 682_740, // (2 225 000 + 2 759 000) / 730
+      });
+    });
+
+    it("getSickLeaveLimits: значения 2020–2023", () => {
+      expect(getSickLeaveLimits(2020)).toEqual({
+        minAvgDailyEarningsKop: 39_879, // 12 130 × 24 / 730
+        maxAvgDailyEarningsKop: 297_260, // (1 020 000 + 1 150 000) / 730
+      });
+      expect(getSickLeaveLimits(2021)).toEqual({
+        minAvgDailyEarningsKop: 42_056, // 12 792 × 24 / 730
+        maxAvgDailyEarningsKop: 334_575, // (1 150 000 + 1 292 400) / 730
+      });
+      expect(getSickLeaveLimits(2022)).toEqual({
+        minAvgDailyEarningsKop: 45_666, // 13 890 × 24 / 730
+        maxAvgDailyEarningsKop: 391_425, // (1 292 400 + 1 565 000) / 730
+      });
+      expect(getSickLeaveLimits(2023)).toEqual({
+        minAvgDailyEarningsKop: 53_398, // 16 242 × 24 / 730
+        maxAvgDailyEarningsKop: 428_082, // (1 560 000 + 1 565 000) / 730
+      });
+    });
+
+    it("getSickLeaveLimits: годы вне таблицы – ближайший год", () => {
+      // 2018/2019 – clamp на 2020 (MIN_DISPLAY_YEAR), лимиты идентичны
+      expect(getSickLeaveLimits(2018)).toEqual(getSickLeaveLimits(2019));
+      expect(getSickLeaveLimits(2028)).toEqual(getSickLeaveLimits(2027));
+    });
+
+    it("2027: max – по базам 2026+2025, min – МРОТ 2026 (fallback)", () => {
+      expect(getSickLeaveLimits(2027)).toEqual({
+        minAvgDailyEarningsKop: 89_073, // МРОТ 2027 не установлен → 2026
+        maxAvgDailyEarningsKop: 786_027, // (2 979 000 + 2 759 000) / 730
+      });
+    });
+
+    it("2024: clamp по минимуму использует МРОТ 2024 (63 261, а не 89 073)", () => {
+      const incomeRecords: IncomeRecord[] = [
+        { type: "salary", accrualDate: ld(2023, 6, 15), grossKop: 10_000 },
+      ];
+      const sl = createSickLeave("sick:2024:06", ld(2024, 6, 1), 3, "work-injury", "under5");
+      const events = calculateSickLeavePayments(
+        [sl],
+        defaultSettings,
+        calendars,
+        incomeRecords,
+        100_000 * 100,
+      );
+
+      const sfrEvent = events.find((e) => e.type === "sick-leave-sfr");
+      expect(sfrEvent!.grossKop).toBe(3 * 63_261);
+    });
+
+    it("2025: clamp по максимуму использует потолок 2023+2024 (567 397, а не 682 740)", () => {
+      const incomeRecords: IncomeRecord[] = [
+        { type: "salary", accrualDate: ld(2024, 12, 15), grossKop: 1_000_000_000 },
+      ];
+      const sl = createSickLeave("sick:2025:06", ld(2025, 6, 1), 3, "illness", "8plus");
+      const events = calculateSickLeavePayments(
+        [sl],
+        defaultSettings,
+        calendars,
+        incomeRecords,
+        100_000 * 100,
+      );
+
+      // illness: дни 1-3 работодатель
+      const empEvent = events.find((e) => e.type === "sick-leave");
+      expect(empEvent!.grossKop).toBe(3 * 567_397);
+    });
+  });
+
+  describe("кап по производственной травме по годам", () => {
+    // Доход за 2 года: 30 000 000 ₽ = 3_000_000_000 коп → СДЗ = 4_109_589 коп/день.
+    // 30 дней в одном месяце → СФР часть сильно выше капа → применяется лимит.
+    const avgDailyEarningsKop = Math.round(3_000_000_000 / 730);
+
+    function workInjurySfrGrossKop(
+      startDate: ReturnType<typeof ld>,
+      calendarDays: number,
+      incomeYear: number,
+    ): number {
+      const incomeRecords: IncomeRecord[] = [
+        { type: "salary", accrualDate: ld(incomeYear, 6, 15), grossKop: 3_000_000_000 },
+      ];
+      const sl = createSickLeave(
+        `sick:${startDate.year}:wi`,
+        startDate,
+        calendarDays,
+        "work-injury",
+        "under5",
+      );
+      const events = calculateSickLeavePayments(
+        [sl],
+        defaultSettings,
+        calendars,
+        incomeRecords,
+        100_000 * 100,
+      );
+      const sfrEvent = events.find((e) => e.type === "sick-leave-sfr");
+      expect(sfrEvent).toBeDefined();
+      return sfrEvent!.grossKop;
+    }
+
+    it("2024: СФР часть не выше 43 513 616 коп", () => {
+      expect(30 * avgDailyEarningsKop).toBeGreaterThan(43_513_616);
+      expect(workInjurySfrGrossKop(ld(2024, 6, 1), 30, 2023)).toBe(43_513_616);
+    });
+
+    it("2025: СФР часть не выше 47 647 408 коп", () => {
+      expect(workInjurySfrGrossKop(ld(2025, 6, 1), 30, 2024)).toBe(47_647_408);
+    });
+
+    it("2026: СФР часть не выше 50 315 664 коп", () => {
+      expect(workInjurySfrGrossKop(ld(2026, 6, 1), 30, 2025)).toBe(50_315_664);
+    });
+
+    it("январь 2026: лимит 2025 (47 647 408 коп)", () => {
+      expect(workInjurySfrGrossKop(ld(2026, 1, 1), 31, 2025)).toBe(47_647_408);
     });
   });
 

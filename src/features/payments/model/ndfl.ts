@@ -1,10 +1,9 @@
 import type { TaxBracketBreakdown } from "@/shared/types";
 import { multiplyByPercent } from "@/shared/lib/money";
-
-// Конфигурация НДФЛ по годам – пороги в копейках, ставки в %.
-interface NdflYearConfig {
-  brackets: [thresholdKop: number, ratePercent: number][];
-}
+import {
+  RC_BASE_BRACKETS,
+  getYearSettings,
+} from "@/shared/lib/yearSettings";
 
 function computeBracketTaxes(
   accumulatedIncomeKop: number,
@@ -22,62 +21,17 @@ function computeBracketTaxes(
   return result;
 }
 
-const NDFL_PROGRESSIVE_1: NdflYearConfig = {
-  brackets: [
-    [500_000_000, 13], // 5 000 000 ₽ в копейках
-    [Infinity, 15],
-  ],
-};
+// НДФЛ с конкретной выплаты = разница налогов на накопленный доход до/после выплаты,
+// посчитанная по каждому диапазону и сведённая по ставкам.
+function bracketDiffForPayment(
+  previousAccumulatedKop: number,
+  paymentKop: number,
+  brackets: [number, number][],
+): TaxBracketBreakdown[] {
+  const newAccumulatedKop = previousAccumulatedKop + paymentKop;
+  const newBracketTaxes = computeBracketTaxes(newAccumulatedKop, brackets);
+  const prevBracketTaxes = computeBracketTaxes(previousAccumulatedKop, brackets);
 
-const NDFL_PROGRESSIVE_2: NdflYearConfig = {
-  brackets: [
-    [240_000_000, 13], // 2 400 000 ₽ в копейках
-    [500_000_000, 15], // 5 000 000 ₽ в копейках
-    [2_000_000_000, 18], // 20 000 000 ₽ в копейках
-    [5_000_000_000, 20], // 50 000 000 ₽ в копейках
-    [Infinity, 22],
-  ],
-};
-
-const NDFL_CONFIGS: Record<number, NdflYearConfig> = {
-  2023: NDFL_PROGRESSIVE_1,
-  2024: NDFL_PROGRESSIVE_1,
-  2025: NDFL_PROGRESSIVE_2,
-  2026: NDFL_PROGRESSIVE_2,
-};
-
-function getNdflConfig(year: number): NdflYearConfig {
-  return NDFL_CONFIGS[year] ?? NDFL_PROGRESSIVE_2;
-}
-
-export function calculateNdflForPayment(
-  paymentGrossKop: number,
-  previousAccumulatedIncomeKop: number,
-  year: number,
-): {
-  ndfl: number;
-  newAccumulatedIncome: number;
-  newTotalTax: number;
-  breakdown: TaxBracketBreakdown[];
-} {
-  const config = getNdflConfig(year);
-  const TAX_BRACKETS = config.brackets;
-
-  const newAccumulatedIncomeKop =
-    previousAccumulatedIncomeKop + paymentGrossKop;
-
-  // Считаем НДФЛ по каждому диапазону для нового и предыдущего накопленного дохода
-  const newBracketTaxes = computeBracketTaxes(
-    newAccumulatedIncomeKop,
-    TAX_BRACKETS,
-  );
-  const prevBracketTaxes = computeBracketTaxes(
-    previousAccumulatedIncomeKop,
-    TAX_BRACKETS,
-  );
-  const totalNewTax = newBracketTaxes.reduce((sum, b) => sum + b.amount, 0);
-
-  // Разница по каждой ставке – это НДФЛ именно с этой выплаты
   const allRates = new Set<number>();
   for (const b of newBracketTaxes) allRates.add(b.rate);
   for (const b of prevBracketTaxes) allRates.add(b.rate);
@@ -85,13 +39,84 @@ export function calculateNdflForPayment(
   const breakdown: TaxBracketBreakdown[] = [];
   for (const rate of [...allRates].sort((a, b) => a - b)) {
     const newAmount = newBracketTaxes.find((b) => b.rate === rate)?.amount ?? 0;
-    const prevAmount =
-      prevBracketTaxes.find((b) => b.rate === rate)?.amount ?? 0;
+    const prevAmount = prevBracketTaxes.find((b) => b.rate === rate)?.amount ?? 0;
     const diff = Math.max(0, newAmount - prevAmount);
     if (diff > 0) {
       breakdown.push({ rate, amount: diff });
     }
   }
+  return breakdown;
+}
+
+// Сложение разбивок по ставкам (основная база + база РК).
+function mergeBreakdowns(
+  main: TaxBracketBreakdown[],
+  rc: TaxBracketBreakdown[],
+): TaxBracketBreakdown[] {
+  const byRate = new Map<number, number>();
+  for (const item of [...main, ...rc]) {
+    byRate.set(item.rate, (byRate.get(item.rate) ?? 0) + item.amount);
+  }
+  return [...byRate.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([rate, amount]) => ({ rate, amount }));
+}
+
+export interface NdflRcOptions {
+  /** Часть выплаты, относящаяся к районному коэффициенту, копейки. */
+  rcKop?: number;
+  /** Накопленная часть РК с начала года до этой выплаты, копейки. */
+  previousRcAccumulatedKop?: number;
+  /**
+   * К выплате применяется отдельная база РК (п. 6.2 ст. 210, п. 1.2 ст. 224 НК РФ).
+   * Категория выплат и год – по таблице настроек (yearSettings).
+   */
+  separateRcBase?: boolean;
+}
+
+export function calculateNdflForPayment(
+  paymentGrossKop: number,
+  previousAccumulatedIncomeKop: number,
+  year: number,
+  rc?: NdflRcOptions,
+): {
+  ndfl: number;
+  newAccumulatedIncome: number;
+  newTotalTax: number;
+  breakdown: TaxBracketBreakdown[];
+  newRcAccumulatedIncome: number;
+} {
+  const TAX_BRACKETS = getYearSettings(year).ndflBrackets;
+
+  const rcKop = rc?.rcKop ?? 0;
+  const previousRcKop = rc?.previousRcAccumulatedKop ?? 0;
+  // Отдельная база РК действует, если часть РК есть и для года/категории
+  // выплат это предусмотрено таблицей настроек. Иначе часть РК остаётся
+  // в основной базе (общая шкала).
+  const separateRcBase = rcKop > 0 && (rc?.separateRcBase ?? false);
+  const mainGrossKop = separateRcBase ? paymentGrossKop - rcKop : paymentGrossKop;
+
+  const newAccumulatedIncomeKop =
+    previousAccumulatedIncomeKop + mainGrossKop;
+
+  const mainBreakdown = bracketDiffForPayment(
+    previousAccumulatedIncomeKop,
+    mainGrossKop,
+    TAX_BRACKETS,
+  );
+  const totalNewTax = computeBracketTaxes(newAccumulatedIncomeKop, TAX_BRACKETS).reduce(
+    (sum, b) => sum + b.amount,
+    0,
+  );
+
+  let rcBreakdown: TaxBracketBreakdown[] = [];
+  let newRcAccumulatedKop = previousRcKop;
+  if (separateRcBase) {
+    rcBreakdown = bracketDiffForPayment(previousRcKop, rcKop, RC_BASE_BRACKETS);
+    newRcAccumulatedKop = previousRcKop + rcKop;
+  }
+
+  const breakdown = mergeBreakdowns(mainBreakdown, rcBreakdown);
 
   // НДФЛ именно с этой выплаты = сумма по всем ставкам из breakdown
   const ndflForPayment = breakdown.reduce((sum, b) => sum + b.amount, 0);
@@ -101,5 +126,6 @@ export function calculateNdflForPayment(
     newAccumulatedIncome: newAccumulatedIncomeKop,
     newTotalTax: totalNewTax,
     breakdown,
+    newRcAccumulatedIncome: newRcAccumulatedKop,
   };
 }

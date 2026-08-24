@@ -17,6 +17,8 @@ export interface IncomeRecord {
   accrualDate: LocalDate;
   grossKop: number;
   factKop?: number;
+  /** Часть gross, относящаяся к районному коэффициенту (для выделения в отдельную базу НДФЛ). */
+  rcKop?: number;
 }
 
 export function getIncomeForPeriod(
@@ -38,6 +40,26 @@ export function getIncomeForPeriod(
   return total;
 }
 
+// Сумма частей РК в доходе расчётного периода (тот же период, что и getIncomeForPeriod).
+export function getRcForPeriod(
+  fromDate: LocalDate,
+  toDate: LocalDate,
+  records: IncomeRecord[],
+): number {
+  let total = 0;
+
+  for (const r of records) {
+    if (
+      Temporal.PlainDate.compare(r.accrualDate, fromDate) >= 0 &&
+      Temporal.PlainDate.compare(r.accrualDate, toDate) < 0
+    ) {
+      total += r.rcKop ?? 0;
+    }
+  }
+
+  return total;
+}
+
 export function calculateVacationPayment(
   vacation: Vacation,
   vacations: Vacation[],
@@ -48,6 +70,8 @@ export function calculateVacationPayment(
   grossKop: number;
   paymentDate: LocalDate;
   originalDate: LocalDate;
+  /** Часть отпускных, относящаяся к РК, копейки (пропорционально доле РК в доходе периода). */
+  rcKop?: number;
 } | null {
   if (vacation.type !== "paid") return null;
 
@@ -70,6 +94,7 @@ export function calculateVacationPayment(
     periodEnd,
     paymentsForIncome,
   );
+  const includedRcKop = getRcForPeriod(periodStart, periodEnd, paymentsForIncome);
 
   const relevantVacations = vacations.filter((v) => {
     if (v.type !== "paid") return false;
@@ -141,5 +166,10 @@ export function calculateVacationPayment(
     grossKop,
     paymentDate: adjustedPaymentDate,
     originalDate: paymentDateRaw,
+    // Часть РК отпускных – пропорционально доле РК в доходе расчётного периода.
+    rcKop:
+      includedRcKop > 0
+        ? Math.round((grossKop * includedRcKop) / includedIncomeKop)
+        : undefined,
   };
 }

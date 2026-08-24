@@ -1,22 +1,14 @@
 import type { CalendarData } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 import { localDate as ld } from "@/shared/types/local-date";
+import { getYearHolidays } from "@/shared/lib/yearSettings";
 import { Temporal } from "@js-temporal/polyfill";
 
-/** Государственные праздники РФ по ст. 112 ТК РФ [месяц, день]. Не включает 1–7 января — они обрабатываются отдельно. */
-const STATE_HOLIDAYS: readonly [number, number][] = [
-  [2, 23],
-  [3, 8],
-  [5, 1],
-  [5, 9],
-  [6, 12],
-  [11, 4],
-];
-
-/** Проверяет, является ли дата государственным праздником (ст. 112 ТК РФ). */
+/** Проверяет, является ли дата государственным праздником (ст. 112 ТК РФ, список из yearSettings). */
 function isStateHoliday(date: LocalDate): boolean {
-  if (date.month === 1 && date.day <= 7) return true;
-  return STATE_HOLIDAYS.some(([m, d]) => m === date.month && d === date.day);
+  return getYearHolidays(date.year).some(
+    ([m, d]) => m === date.month && d === date.day,
+  );
 }
 
 /** Определяет выходной: 6 — суббота, 7 — воскресенье (ISO 8601, Temporal dayOfWeek). */

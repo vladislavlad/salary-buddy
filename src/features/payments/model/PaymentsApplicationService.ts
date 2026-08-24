@@ -3,6 +3,7 @@ import type {
   Bonus,
   CalendarData,
   Payment,
+  RegionalCoefficientChange,
   SalaryCalculationSettings,
   SickLeave,
   SickLeaveSettings,
@@ -16,6 +17,7 @@ export interface PaymentCalculationInput {
   settings: SalaryCalculationSettings;
   bonuses: Bonus[];
   surcharges: SurchargeChange[];
+  regionalCoefficients?: RegionalCoefficientChange[];
   vacations: Vacation[];
   sickLeaves: SickLeave[];
   sickLeaveSettings: SickLeaveSettings;

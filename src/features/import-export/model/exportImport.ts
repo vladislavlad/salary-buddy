@@ -2,7 +2,7 @@ import { DEFAULT_SALARY_PAYMENT_SETTINGS } from "@/features/salary-payment-setti
 import type { SalaryPaymentSettingsRepository } from "@/features/salary-payment-settings/repository/SalaryPaymentSettingsRepository";
 import type { SickLeaveSettingsRepository } from "@/features/sick-leave/repository/SickLeaveSettingsRepository";
 import type { Repository } from "@/shared/repository/Repository";
-import type { Bonus, Payment, Salary, SickLeave, SurchargeChange, Vacation } from "@/shared/types";
+import type { Bonus, Payment, RegionalCoefficientChange, Salary, SickLeave, SurchargeChange, Vacation } from "@/shared/types";
 import type { SickLeaveSettings } from "@/shared/types/sick-leave";
 import { ExportDataSchema } from "@/shared/types/exportImport";
 
@@ -18,6 +18,7 @@ export interface ExportImportRepositories {
   surcharge: Repository<SurchargeChange>;
   payment: Repository<Payment>;
   sickLeave: Repository<SickLeave>;
+  regionalCoefficient: Repository<RegionalCoefficientChange>;
   salaryPaymentSettings: SalaryPaymentSettingsRepository;
   sickLeaveSettings: SickLeaveSettingsRepository;
 }
@@ -29,7 +30,7 @@ export async function collectExportData(repos: ExportImportRepositories): Promis
   const today = new Date();
   const exportDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-  const [salaryPaymentSettings, salaries, bonuses, vacations, surcharges, payments, sickLeaves, sickLeaveSettings] = await Promise.all([
+  const [salaryPaymentSettings, salaries, bonuses, vacations, surcharges, payments, sickLeaves, sickLeaveSettings, regionalCoefficients] = await Promise.all([
     repos.salaryPaymentSettings.get(),
     repos.salary.findAll(),
     repos.bonus.findAll(),
@@ -38,6 +39,7 @@ export async function collectExportData(repos: ExportImportRepositories): Promis
     repos.payment.findAll(),
     repos.sickLeave.findAll(),
     repos.sickLeaveSettings.get(),
+    repos.regionalCoefficient.findAll(),
   ]);
 
   return ExportDataSchema.parse({
@@ -50,6 +52,7 @@ export async function collectExportData(repos: ExportImportRepositories): Promis
     payments,
     sickLeaves,
     sickLeaveSettings: sickLeaveSettings ?? DEFAULT_SICK_LEAVE_SETTINGS,
+    regionalCoefficients,
   });
 }
 
@@ -74,6 +77,7 @@ export async function importFromFile(file: File, repos: ExportImportRepositories
     repos.payment.saveAll(validated.payments),
     repos.sickLeave.saveAll(validated.sickLeaves),
     repos.sickLeaveSettings.save(validated.sickLeaveSettings ?? DEFAULT_SICK_LEAVE_SETTINGS),
+    repos.regionalCoefficient.saveAll(validated.regionalCoefficients),
   ]);
 }
 
@@ -90,5 +94,6 @@ export async function clearAll(repos: ExportImportRepositories): Promise<void> {
     repos.sickLeave.clear(),
     repos.salaryPaymentSettings.clear(),
     repos.sickLeaveSettings.clear(),
+    repos.regionalCoefficient.clear(),
   ]);
 }
