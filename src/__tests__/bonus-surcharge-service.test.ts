@@ -89,4 +89,33 @@ describe("SurchargeApplicationService", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toContain("больше нуля");
   });
+
+  it("add: нумерует доплаты внутри года и не переиспользует удалённые номера", async () => {
+    const service = new SurchargeApplicationService(
+      new InMemoryRepository<SurchargeChange>(),
+    );
+
+    const r1 = await service.add({
+      effectiveDate: localDate(2026, 2, 1),
+      amount: 50_000,
+    });
+    if (!r1.ok) throw new Error("unexpected");
+    expect(r1.value.id).toBe("sur:2026:01");
+
+    const r2 = await service.add({
+      effectiveDate: localDate(2026, 5, 1),
+      amount: 60_000,
+    });
+    if (!r2.ok) throw new Error("unexpected");
+    expect(r2.value.id).toBe("sur:2026:02");
+
+    await service.remove(r1.value.id);
+
+    const r3 = await service.add({
+      effectiveDate: localDate(2026, 7, 1),
+      amount: 70_000,
+    });
+    if (!r3.ok) throw new Error("unexpected");
+    expect(r3.value.id).toBe("sur:2026:03");
+  });
 });

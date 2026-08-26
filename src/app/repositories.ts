@@ -1,41 +1,56 @@
-import { z } from "zod";
-import { LocalStorageRepository } from "@/shared/repository/LocalStorageRepository";
+import { createListRepository } from "@/shared/repository/LocalStorageRepository";
 import { LocalStorageCalendarSettingsRepository } from "@/features/calendar/repository/LocalStorageCalendarSettingsRepository";
 import { LocalStorageSalaryPaymentSettingsRepository } from "@/features/salary-payment-settings/repository/LocalStorageSalaryPaymentSettingsRepository";
 import { LocalStorageSickLeaveSettingsRepository } from "@/features/sick-leave/repository/LocalStorageSickLeaveSettingsRepository";
-import { BonusSchema, PaymentSchema, RegionalCoefficientChangeSchema, SalarySchema, SickLeaveSchema, SurchargeChangeSchema, VacationSchema } from "@/shared/types";
+import {
+  type Bonus,
+  type Payment,
+  type RegionalCoefficientChange,
+  type Salary,
+  type SickLeave,
+  type SurchargeChange,
+  type Vacation,
+  BonusSchema,
+  PaymentSchema,
+  RegionalCoefficientChangeSchema,
+  SalarySchema,
+  SickLeaveSchema,
+  SurchargeChangeSchema,
+  VacationSchema,
+} from "@/shared/types";
 
-export const bonusRepository = new LocalStorageRepository(
+export const bonusRepository = createListRepository<Bonus>(
   "salary-buddy-bonuses",
-  z.array(BonusSchema) as z.ZodType<z.infer<typeof BonusSchema>[]>,
+  BonusSchema,
 );
-export const paymentsRepository = new LocalStorageRepository(
+export const paymentsRepository = createListRepository<Payment>(
   "salary-buddy-payments",
-  z.array(PaymentSchema) as z.ZodType<z.infer<typeof PaymentSchema>[]>,
+  PaymentSchema,
 );
 export const calendarSettingsRepository =
   new LocalStorageCalendarSettingsRepository();
 export const salaryPaymentSettingsRepository =
   new LocalStorageSalaryPaymentSettingsRepository();
-export const salaryRepository = new LocalStorageRepository(
+export const salaryRepository = createListRepository<Salary>(
   "salary-buddy-salaries",
-  z.array(SalarySchema) as z.ZodType<z.infer<typeof SalarySchema>[]>,
+  SalarySchema,
 );
-export const sickLeaveRepository = new LocalStorageRepository(
+export const sickLeaveRepository = createListRepository<SickLeave>(
   "salary-buddy-sick-leaves",
-  z.array(SickLeaveSchema) as z.ZodType<z.infer<typeof SickLeaveSchema>[]>,
+  SickLeaveSchema,
 );
 export const sickLeaveSettingsRepository =
   new LocalStorageSickLeaveSettingsRepository();
-export const surchargeRepository = new LocalStorageRepository(
+export const surchargeRepository = createListRepository<SurchargeChange>(
   "salary-buddy-surcharges",
-  z.array(SurchargeChangeSchema) as z.ZodType<z.infer<typeof SurchargeChangeSchema>[]>,
+  SurchargeChangeSchema,
 );
-export const vacationRepository = new LocalStorageRepository(
+export const vacationRepository = createListRepository<Vacation>(
   "salary-buddy-vacations",
-  z.array(VacationSchema) as z.ZodType<z.infer<typeof VacationSchema>[]>,
+  VacationSchema,
 );
-export const regionalCoefficientRepository = new LocalStorageRepository(
-  "salary-buddy-regional-coefficients",
-  z.array(RegionalCoefficientChangeSchema) as z.ZodType<z.infer<typeof RegionalCoefficientChangeSchema>[]>,
-);
+export const regionalCoefficientRepository =
+  createListRepository<RegionalCoefficientChange>(
+    "salary-buddy-regional-coefficients",
+    RegionalCoefficientChangeSchema,
+  );

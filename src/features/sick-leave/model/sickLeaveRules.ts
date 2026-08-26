@@ -2,10 +2,10 @@ import type { CalendarData } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 import type { SickLeave, SickLeaveCreateRequest, SickLeaveUpdateRequest } from "@/shared/types/sick-leave";
 import type { Result } from "@/shared/result";
+import { nextSequenceId } from "@/shared/lib/ids";
 
 function generateSickLeaveId(sickLeaves: SickLeave[], year: number): string {
-  const count = sickLeaves.filter((s) => s.startDate.year === year).length + 1;
-  return `sick:${year}:${String(count).padStart(2, "0")}`;
+  return nextSequenceId("sick:", year, sickLeaves.map((s) => s.id));
 }
 
 function getCalendar(

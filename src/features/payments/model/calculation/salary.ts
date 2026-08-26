@@ -1,6 +1,7 @@
 import type { SalaryChange } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 import { Temporal } from "@js-temporal/polyfill";
+import { getEffectiveValueForDate } from "./effectiveValue";
 
 export function sortSalaryChanges(
   changes: SalaryChange[],
@@ -14,13 +15,5 @@ export function getSalaryForDate(
   date: LocalDate,
   sortedChanges: readonly SalaryChange[],
 ): number {
-  let result = 0;
-  for (const change of sortedChanges) {
-    if (Temporal.PlainDate.compare(change.effectiveDate, date) <= 0) {
-      result = change.amount;
-    } else {
-      break;
-    }
-  }
-  return result;
+  return getEffectiveValueForDate(date, sortedChanges, (c) => c.amount);
 }

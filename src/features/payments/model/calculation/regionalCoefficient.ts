@@ -1,6 +1,7 @@
 import type { RegionalCoefficientChange } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 import { Temporal } from "@js-temporal/polyfill";
+import { getEffectiveValueForDate } from "./effectiveValue";
 
 export function sortRegionalCoefficientChanges(
   changes: RegionalCoefficientChange[],
@@ -14,15 +15,7 @@ export function getCoefficientForDate(
   date: LocalDate,
   sortedChanges: readonly RegionalCoefficientChange[],
 ): number {
-  let result = 0;
-  for (const change of sortedChanges) {
-    if (Temporal.PlainDate.compare(change.effectiveDate, date) <= 0) {
-      result = change.percent;
-    } else {
-      break;
-    }
-  }
-  return result;
+  return getEffectiveValueForDate(date, sortedChanges, (c) => c.percent);
 }
 
 // Часть gross, относящаяся к районному коэффициенту: gross × pct / (100 + pct).

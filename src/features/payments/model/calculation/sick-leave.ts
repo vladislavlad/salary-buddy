@@ -7,6 +7,7 @@ import type {
 import type { LocalDate } from "@/shared/types/local-date";
 import { localDate as ld } from "@/shared/types/local-date";
 import { findPreviousWorkday, isDayOff } from "@/features/calendar/model/calendar";
+import { localDateToCalendarKey } from "@/shared/lib/utils";
 import type { RawEvent, MonthPaymentDates } from "./types";
 import type { IncomeRecord } from "./vacation";
 import { getCoefficientForDate } from "./regionalCoefficient";
@@ -52,7 +53,9 @@ function getExperiencePercent(
   }
 }
 
-function getIncomeForPeriod(
+// Доход расчётного периода больничного (2 полных года назад) по годам.
+// Не путать с getIncomeForPeriod из vacation.ts – тот работает по датам.
+function getIncomeForCalcPeriod(
   fromYear: number,
   toYear: number,
   records: IncomeRecord[],
@@ -67,8 +70,8 @@ function getIncomeForPeriod(
   return total;
 }
 
-// Сумма частей РК в доходе расчётного периода (тот же период, что и getIncomeForPeriod).
-function getRcForPeriod(
+// Сумма частей РК в доходе расчётного периода (тот же период, что и getIncomeForCalcPeriod).
+function getRcForCalcPeriod(
   fromYear: number,
   toYear: number,
   records: IncomeRecord[],
@@ -94,7 +97,7 @@ function calculateAvgDailyEarnings(
   const { minAvgDailyEarningsKop, maxAvgDailyEarningsKop } =
     getSickLeaveLimits(slYear);
 
-  const totalIncomeKop = getIncomeForPeriod(fromYear, slYear, incomeRecords);
+  const totalIncomeKop = getIncomeForCalcPeriod(fromYear, slYear, incomeRecords);
 
   // При производственной травме СДЗ определяется без учёта предельной базы (ст. 9 ФЗ-125).
   const hasMaxCap = sickLeave.reason !== "work-injury";
@@ -107,7 +110,7 @@ function calculateAvgDailyEarnings(
     avgDailyEarningsKop = Math.max(minAvgDailyEarningsKop, avgDailyEarningsKop);
     // Доля РК в доходе расчётного периода – для выделения части РК пособия
     // в отдельную базу НДФЛ (с 2026).
-    const totalRcKop = getRcForPeriod(fromYear, slYear, incomeRecords);
+    const totalRcKop = getRcForCalcPeriod(fromYear, slYear, incomeRecords);
     return {
       avgDailyEarningsKop,
       usedFallback: false,
@@ -304,37 +307,29 @@ export function calculateSickLeavePayments(
       // Доплата от работодателя – только за рабочие дни. Платится вместе с
       // авансом/зарплатой → разносим по половинам месяца (1-15 → аванс, 16+ → зарплата).
       if (settings.enableTopUp) {
-          const topUpDays = allocatedTopUp.get(sl.id)?.get(ymKey) ?? 0;
-          if (topUpDays > 0 && dailyBenefitKop > 0) {
-            const topUpByHalf = new Map<MonthHalf, number>();
-            const topUpRcByHalf = new Map<MonthHalf, number>();
-
-          // Кэшируем рабочие дни по месяцам.
-          const monthWorkdaysCache = new Map<string, number>();
+        const topUpDays = allocatedTopUp.get(sl.id)?.get(ymKey) ?? 0;
+        if (topUpDays > 0 && dailyBenefitKop > 0) {
+          const topUpByHalf = new Map<MonthHalf, number>();
+          const topUpRcByHalf = new Map<MonthHalf, number>();
 
           // Берём только рабочие дни из периода больничного (до лимита).
-          const workdayDates = calendarData
-            ? datesInChunk.filter((d) => !isDayOff(d, calendarData))
-            : [];
+          const workdayDates = datesInChunk.filter(
+            (d) => !isDayOff(d, calendarData),
+          );
+
+          // Все дни чанка лежат в одном году-месяце, поэтому рабочих дней
+          // в месяце достаточно посчитать один раз.
+          const firstDate = datesInChunk[0]!;
+          let monthWorkdays = 0;
+          for (let d = 1; d <= firstDate.daysInMonth; d++) {
+            const code = calendarData.get(
+              localDateToCalendarKey(ld(firstDate.year, firstDate.month, d)),
+            );
+            if (code !== 1 && code !== 8) monthWorkdays++;
+          }
+
           for (let i = 0; i < Math.min(topUpDays, workdayDates.length); i++) {
             const dayDate = workdayDates[i]!;
-
-            const cacheKey = `${dayDate.year}-${dayDate.month}`;
-            let monthWorkdays = monthWorkdaysCache.get(cacheKey);
-            if (monthWorkdays === undefined) {
-              const cal = calendarsByYear.get(dayDate.year);
-              if (!cal) {
-                monthWorkdays = 0;
-              } else {
-                monthWorkdays = 0;
-                for (let d = 1; d <= dayDate.daysInMonth; d++) {
-                  const checkDate = ld(dayDate.year, dayDate.month, d);
-                  const code = cal.get(checkDate.toString().replace(/-/g, ""));
-                  if (code !== 1 && code !== 8) monthWorkdays++;
-                }
-              }
-              monthWorkdaysCache.set(cacheKey, monthWorkdays);
-            }
 
             // Дневной оклад с учётом РК, действующего на дату дня больничного.
             const dayPct = sortedCoefficients

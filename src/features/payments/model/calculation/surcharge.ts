@@ -5,6 +5,7 @@ import { dateToKey } from "@/shared/lib/utils";
 import { divideRound } from "@/shared/lib/money";
 import { getWorkdaysInRange } from "./period";
 import { getCoefficientForDate } from "./regionalCoefficient";
+import { getEffectiveValueForDate } from "./effectiveValue";
 
 export function sortSurchargeChanges(
   changes: SurchargeChange[],
@@ -18,15 +19,7 @@ export function getSurchargeForDate(
   date: LocalDate,
   sortedChanges: readonly SurchargeChange[],
 ): number {
-  let result = 0;
-  for (const change of sortedChanges) {
-    if (Temporal.PlainDate.compare(change.effectiveDate, date) <= 0) {
-      result = change.amount;
-    } else {
-      break;
-    }
-  }
-  return result;
+  return getEffectiveValueForDate(date, sortedChanges, (c) => c.amount);
 }
 
 export function calculatePeriodSurcharge(

@@ -277,10 +277,10 @@ export function addBonusEvents(
   bonuses: Bonus[],
   sortedChanges: BuildSalaryParams["sortedChanges"],
   sortedCoefficients: BuildSalaryParams["sortedRegionalCoefficientChanges"],
-  events: RawEvent[],
   minYear: number,
   maxYear: number,
-): void {
+): RawEvent[] {
+  const bonusEvents: RawEvent[] = [];
   for (const b of bonuses) {
     const bonusDate = b.date;
     if (bonusDate.year < minYear || bonusDate.year > maxYear) continue;
@@ -296,7 +296,7 @@ export function addBonusEvents(
       : 0;
     const grossKop =
       percent > 0 ? Math.round(baseGrossKop * (1 + percent / 100)) : baseGrossKop;
-    events.push({
+    bonusEvents.push({
       sourceId: b.id,
       date: bonusDate,
       type: "bonus",
@@ -312,7 +312,10 @@ export function addBonusEvents(
       accrualDate: ld(bonusDate.year, bonusDate.month, 1),
     });
   }
+  return bonusEvents;
 }
+
+const MAX_STABILIZATION_ITERATIONS = 5;
 
 export function stabilizeVacations(
   params: StabilizeVacationsParams,
@@ -322,7 +325,9 @@ export function stabilizeVacations(
   const nonVacationEvents = events.filter((e) => e.type !== "vacation");
   let currentVacationEvents = events.filter((e) => e.type === "vacation");
 
-  for (let iter = 0; iter < 5; iter++) {
+  // Страховой предел итераций: отпускные не входят в базу среднего
+  // заработка, поэтому результат сходится после первого расчёта.
+  for (let iter = 0; iter < MAX_STABILIZATION_ITERATIONS; iter++) {
     const allCurrentEvents = [...nonVacationEvents, ...currentVacationEvents];
 
     // Доход для отпускных строим ТОЛЬКО из свежесгенерированных событий –
@@ -488,7 +493,10 @@ export function buildPaymentsWithNdfl(
     }
   }
 
-  events.sort((a, b) => Temporal.PlainDate.compare(a.date, b.date));
+  // Сортируем копию: входной массив аргументов не мутируем.
+  const sortedEvents = [...events].sort((a, b) =>
+    Temporal.PlainDate.compare(a.date, b.date),
+  );
 
   const recalculatedPayments: Payment[] = [];
   let accumulatedIncomeKop = initialAccumulatedIncomeKop;
@@ -496,7 +504,7 @@ export function buildPaymentsWithNdfl(
   let currentYear = startYear;
   const idCounter = new Map<string, number>();
 
-  for (const event of events) {
+  for (const event of sortedEvents) {
     const eventYear = event.date.year;
 
     if (recalcFrom && Temporal.PlainDate.compare(event.date, recalcFrom) < 0) {
@@ -637,13 +645,14 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
     maxYear,
   });
 
-  addBonusEvents(
-    bonuses,
-    sortedChanges,
-    sortedRegionalCoefficientChanges,
-    events,
-    minYear,
-    maxYear,
+  events.push(
+    ...addBonusEvents(
+      bonuses,
+      sortedChanges,
+      sortedRegionalCoefficientChanges,
+      minYear,
+      maxYear,
+    ),
   );
 
   // Карта фактов из существующих платежей – учитывается в доходе для отпускных и НДФЛ

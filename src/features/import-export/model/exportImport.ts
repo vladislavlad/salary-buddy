@@ -4,7 +4,7 @@ import type { SickLeaveSettingsRepository } from "@/features/sick-leave/reposito
 import type { Repository } from "@/shared/repository/Repository";
 import type { Bonus, Payment, RegionalCoefficientChange, Salary, SickLeave, SurchargeChange, Vacation } from "@/shared/types";
 import type { SickLeaveSettings } from "@/shared/types/sick-leave";
-import { ExportDataSchema } from "@/shared/types/exportImport";
+import { ExportDataSchema, type ExportData } from "@/shared/types/exportImport";
 
 const DEFAULT_SICK_LEAVE_SETTINGS: SickLeaveSettings = {
   enableTopUp: false,
@@ -58,15 +58,25 @@ export async function collectExportData(repos: ExportImportRepositories): Promis
 
 /**
  * Валидирует и загружает данные из JSON-файла.
- * Перед записью очищает текущие значения в хранилище.
+ * clearAll не нужен: saveAll пишет целый массив целиком, заменяя старые
+ * данные; при ошибке записи неподписанные разделы хранилища остаются нетронутыми.
  */
 export async function importFromFile(file: File, repos: ExportImportRepositories): Promise<void> {
   const text = await file.text();
-  const parsed = JSON.parse(text);
 
-  const validated = ExportDataSchema.parse(parsed);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error("Файл не содержит корректный JSON");
+  }
 
-  await clearAll(repos);
+  let validated: ExportData;
+  try {
+    validated = ExportDataSchema.parse(parsed);
+  } catch {
+    throw new Error("Формат файла не совпадает с форматом данных Salary Buddy");
+  }
 
   await Promise.all([
     repos.salaryPaymentSettings.save(validated.salaryPaymentSettings),

@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { Switch } from "@/shared/ui/switch";
+import { loadStoredTheme, storeTheme, type Theme } from "@/shared/lib/theme";
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    const stored = localStorage.getItem("theme") as "light" | "dark" | null;
+    const stored = loadStoredTheme();
     if (stored) {
       setTheme(stored);
       document.documentElement.classList.toggle("dark", stored === "dark");
@@ -17,9 +18,9 @@ export function ThemeToggle() {
   }, []);
 
   const toggle = (checked: boolean) => {
-    const next = checked ? "dark" : "light";
+    const next: Theme = checked ? "dark" : "light";
     setTheme(next);
-    localStorage.setItem("theme", next);
+    storeTheme(next);
     document.documentElement.classList.toggle("dark", next === "dark");
   };
 

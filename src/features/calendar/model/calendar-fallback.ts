@@ -1,6 +1,7 @@
 import type { CalendarData } from "@/shared/types";
 import type { LocalDate } from "@/shared/types/local-date";
 import { localDate as ld } from "@/shared/types/local-date";
+import { localDateToCalendarKey } from "@/shared/lib/utils";
 import { getYearHolidays } from "@/shared/lib/yearSettings";
 import { Temporal } from "@js-temporal/polyfill";
 
@@ -17,11 +18,6 @@ function isWeekend(date: LocalDate): boolean {
   return dow === 6 || dow === 7;
 }
 
-/** Форматирует LocalDate в формат YYYYMMDD. */
-function formatDate(ld: LocalDate): string {
-  return ld.toString().replace(/-/g, "");
-}
-
 /** Генерирует fallback-календарь: выходные (код 1), праздники ст. 112 ТК РФ (код 8), рабочие дни (код 0). */
 export function generateFallbackCalendar(year: number): CalendarData {
   const data = new Map<string, number>();
@@ -30,11 +26,11 @@ export function generateFallbackCalendar(year: number): CalendarData {
 
   while (Temporal.PlainDate.compare(date, endOfYear) <= 0) {
     if (isStateHoliday(date)) {
-      data.set(formatDate(date), 8);
+      data.set(localDateToCalendarKey(date), 8);
     } else if (isWeekend(date)) {
-      data.set(formatDate(date), 1);
+      data.set(localDateToCalendarKey(date), 1);
     } else {
-      data.set(formatDate(date), 0);
+      data.set(localDateToCalendarKey(date), 0);
     }
     date = date.add({ days: 1 });
   }

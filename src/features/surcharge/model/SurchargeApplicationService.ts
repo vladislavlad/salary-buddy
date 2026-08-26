@@ -16,7 +16,8 @@ export class SurchargeApplicationService implements SurchargeService {
   }
 
   async add(req: SurchargeCreateRequest): Promise<Result<SurchargeChange>> {
-    const result = createSurcharge(req);
+    const surcharges = await this.repository.findAll();
+    const result = createSurcharge(surcharges, req);
     if (!result.ok) return result;
 
     await this.repository.save(result.value);

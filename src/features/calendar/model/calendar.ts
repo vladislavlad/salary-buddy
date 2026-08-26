@@ -14,7 +14,8 @@ export interface FetchCalendarResult {
 }
 
 /**
- * Загружает календарь за год: сначала isdayoff.ru, при отсутствии данных — fallback-генератор.
+ * Загружает календарь за год: сначала isdayoff.ru, при отсутствии данных
+ * или сетевой ошибке — fallback-генератор.
  * Пост-обработка: в режиме «без учёта ковидных дней» код 4 заменяется на 0,
  * затем праздники года (yearSettings) накладываются кодом 8.
  */
@@ -22,7 +23,14 @@ export async function fetchCalendar(
   year: number,
   accountForCoronavirus: boolean,
 ): Promise<FetchCalendarResult> {
-  const apiData = await isdayoffFetch(year);
+  let apiData: CalendarData | null;
+  try {
+    apiData = await isdayoffFetch(year);
+  } catch {
+    // Сетевая ошибка / недоступный API – переходим на fallback,
+    // иначе год останется без календаря («Загрузка...» вечно).
+    apiData = null;
+  }
   const data = apiData ?? generateFallbackCalendar(year);
 
   if (!accountForCoronavirus) {

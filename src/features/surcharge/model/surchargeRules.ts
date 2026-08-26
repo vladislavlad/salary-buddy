@@ -4,6 +4,7 @@ import type {
   SurchargeUpdateRequest,
 } from "@/shared/types";
 import type { Result } from "@/shared/result";
+import { nextSequenceId } from "@/shared/lib/ids";
 
 function validateAmount(amount: number): Result<null> {
   if (amount <= 0) {
@@ -13,6 +14,7 @@ function validateAmount(amount: number): Result<null> {
 }
 
 export function createSurcharge(
+  surcharges: SurchargeChange[],
   req: SurchargeCreateRequest,
 ): Result<SurchargeChange> {
   const amountValidation = validateAmount(req.amount);
@@ -21,7 +23,11 @@ export function createSurcharge(
   return {
     ok: true,
     value: {
-      id: crypto.randomUUID(),
+      id: nextSequenceId(
+        "sur:",
+        req.effectiveDate.year,
+        surcharges.map((surcharge) => surcharge.id),
+      ),
       effectiveDate: req.effectiveDate,
       amount: req.amount,
     },

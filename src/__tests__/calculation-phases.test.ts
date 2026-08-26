@@ -86,8 +86,7 @@ describe("addBonusEvents", () => {
       type: "custom",
     };
 
-    const events: RawEvent[] = [];
-    addBonusEvents([bonus], makeSortedChanges(), undefined, events, 2025, 2025);
+    const events = addBonusEvents([bonus], makeSortedChanges(), undefined, 2025, 2025);
 
     expect(events.length).toBe(1);
     expect(events[0]!.type).toBe("bonus");
@@ -102,8 +101,7 @@ describe("addBonusEvents", () => {
       type: "salaries",
     };
 
-    const events: RawEvent[] = [];
-    addBonusEvents([bonus], makeSortedChanges(), undefined, events, 2025, 2025);
+    const events = addBonusEvents([bonus], makeSortedChanges(), undefined, 2025, 2025);
 
     expect(events.length).toBe(1);
     // gross = amount * salaryOnDateKop = 2 * 10_000_000 kop
@@ -124,8 +122,7 @@ describe("addBonusEvents", () => {
       { id: "1", effectiveDate: ld(2025, 1, 1), amount: 100_000 * 100 },
     ]);
 
-    const events: RawEvent[] = [];
-    addBonusEvents([bonus], sortedChanges, undefined, events, 2024, 2025);
+    const events = addBonusEvents([bonus], sortedChanges, undefined, 2024, 2025);
 
     expect(events.length).toBe(0);
   });
@@ -138,8 +135,7 @@ describe("addBonusEvents", () => {
       type: "custom",
     };
 
-    const events: RawEvent[] = [];
-    addBonusEvents([bonus], makeSortedChanges(), undefined, events, 2025, 2025);
+    const events = addBonusEvents([bonus], makeSortedChanges(), undefined, 2025, 2025);
 
     expect(events.length).toBe(0);
   });

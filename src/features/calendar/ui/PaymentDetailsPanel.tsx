@@ -193,7 +193,8 @@ export function PaymentDetailsPanel({
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [anchorRef, payments.length]);
+    // editingId: вход в режим редактирования меняет высоту поповера.
+  }, [anchorRef, payments.length, editingId]);
 
   // Закрытие по клику вне поповера. Используем mousedown на document вместо
   // полноэкранного оверлея – иначе оверлей перехватывал бы клики по ячейкам
@@ -210,7 +211,7 @@ export function PaymentDetailsPanel({
   }, [onClose]);
 
   const sortedPayments = [...payments].sort(
-    (a, b) => (PAYMENT_PRIORITY[b.type] ?? 0) - (PAYMENT_PRIORITY[a.type] ?? 0),
+    (a, b) => PAYMENT_PRIORITY[b.type] - PAYMENT_PRIORITY[a.type],
   );
 
   const firstPayment = sortedPayments[0];
@@ -236,7 +237,7 @@ export function PaymentDetailsPanel({
         {sortedPayments.map((item, idx) => {
           const isEditing = editingId === item.id;
           return (
-            <div key={idx}>
+            <div key={item.id}>
               {idx > 0 && <div className="border-t my-2" />}
               <PaymentDetails
                 label={getPaymentLabel(item.type)}

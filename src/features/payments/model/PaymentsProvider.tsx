@@ -6,7 +6,7 @@ import { useVacationsProvider } from "@/features/vacation/hooks/useVacationsProv
 import { useSickLeavesProvider } from "@/features/sick-leave/hooks/useSickLeavesProvider";
 import { useSurchargeProvider } from "@/features/surcharge/hooks/useSurchargeProvider";
 import { useRegionalCoefficientProvider } from "@/features/regional-coefficient/hooks/useRegionalCoefficientProvider";
-import { useCalendar } from "@/features/calendar/hooks/useCalendar.ts";
+import { useCalendar } from "@/features/calendar/hooks/useCalendar";
 import type { Payment } from "@/shared/types";
 import { PaymentsContext } from "./PaymentsContext";
 import { paymentsRepository } from "@/app/repositories";

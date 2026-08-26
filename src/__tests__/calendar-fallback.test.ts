@@ -232,6 +232,26 @@ describe("fetchCalendar", () => {
     expect(result.isFallback).toBe(true);
   });
 
+  it("переключается на fallback при сетевой ошибке", async () => {
+    vi.spyOn(global, "fetch").mockRejectedValue(new Error("network error"));
+
+    const result = await fetchCalendar(2026, false);
+    // Fallback: 1 января — праздник (код 8)
+    expect(result.data.get("20260101")).toBe(8);
+    expect(result.isFallback).toBe(true);
+  });
+
+  it("переключается на fallback при ошибке ответа API (ok: false)", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: false,
+      text: () => Promise.resolve(""),
+    } as Response);
+
+    const result = await fetchCalendar(2026, false);
+    expect(result.data.get("20260101")).toBe(8);
+    expect(result.isFallback).toBe(true);
+  });
+
   it("режим «без учёта ковидных дней»: код 4 → 0 (рабочий день)", async () => {
     // Ковидный день — 15.01.2026 (не праздник, чтобы наложение кодом 8 не затирало)
     const digits = "0".repeat(14) + "4" + "0".repeat(350);

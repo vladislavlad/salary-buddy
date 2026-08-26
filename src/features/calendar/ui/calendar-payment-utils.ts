@@ -1,4 +1,4 @@
-import type { Payment } from "@/shared/types";
+import type { Payment, PaymentType } from "@/shared/types";
 
 export const MONTH_NAMES = [
   "Январь",
@@ -15,7 +15,9 @@ export const MONTH_NAMES = [
   "Декабрь",
 ];
 
-export const PAYMENT_PRIORITY: Record<string, number> = {
+// Record<PaymentType, ...>: добавление нового типа в payment.ts
+// без оформления здесь становится ошибкой компиляции.
+export const PAYMENT_PRIORITY: Record<PaymentType, number> = {
   advance: 1,
   salary: 1,
   surcharge: 1,
@@ -26,7 +28,7 @@ export const PAYMENT_PRIORITY: Record<string, number> = {
   bonus: 3,
 };
 
-export const PAY_VAR_SUFFIX: Record<string, string> = {
+export const PAY_VAR_SUFFIX: Record<PaymentType, string> = {
   advance: "salary",
   salary: "salary",
   surcharge: "salary",
@@ -37,7 +39,7 @@ export const PAY_VAR_SUFFIX: Record<string, string> = {
   "sick-leave-topup": "sickleave",
 };
 
-export const PAYMENT_COLOR_VAR: Record<string, string> = {
+export const PAYMENT_COLOR_VAR: Record<PaymentType, string> = {
   advance: "var(--pay-salary-bg)",
   salary: "var(--pay-salary-bg)",
   surcharge: "var(--pay-salary-bg)",
@@ -48,11 +50,11 @@ export const PAYMENT_COLOR_VAR: Record<string, string> = {
   "sick-leave-topup": "var(--pay-sickleave-bg)",
 };
 
-export function getHighestPriority(payments: Payment[]): string {
-  let highest = "";
+export function getHighestPriority(payments: Payment[]): PaymentType | null {
+  let highest: PaymentType | null = null;
   let maxP = 0;
   for (const p of payments) {
-    const pr = PAYMENT_PRIORITY[p.type] ?? 0;
+    const pr = PAYMENT_PRIORITY[p.type];
     if (pr > maxP) {
       maxP = pr;
       highest = p.type;
@@ -61,7 +63,7 @@ export function getHighestPriority(payments: Payment[]): string {
   return highest;
 }
 
-export function getPaymentLabel(type: string): string {
+export function getPaymentLabel(type: PaymentType): string {
   switch (type) {
     case "advance":
       return "Аванс";
@@ -79,17 +81,17 @@ export function getPaymentLabel(type: string): string {
       return "Больничный (СФР)";
     case "sick-leave-topup":
       return "Доплата к больничному";
-    default:
-      return type;
   }
 }
 
-export function getStripeStyle(types: string[]): React.CSSProperties | undefined {
+export function getStripeStyle(
+  types: PaymentType[],
+): React.CSSProperties | undefined {
   if (types.length < 2) return undefined;
   const unique = [...new Set(types)];
   const step = 10 / unique.length;
   const stops = unique.map((t, i) => {
-    const c = PAYMENT_COLOR_VAR[t] ?? "var(--pay-salary-bg)";
+    const c = PAYMENT_COLOR_VAR[t];
     const start = (i * step).toFixed(2);
     const end = ((i + 1) * step).toFixed(2);
     return `${c} ${start}px, ${c} ${end}px`;

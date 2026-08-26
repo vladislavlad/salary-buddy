@@ -24,6 +24,21 @@ export interface PaymentCalculationInput {
   calendars: Map<number, CalendarData>;
 }
 
+function ndflsEqual(
+  a: readonly { rate: number; amount: number }[],
+  b: readonly { rate: number; amount: number }[],
+): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i]!.rate !== b[i]!.rate || a[i]!.amount !== b[i]!.amount) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Полное сравнение: при неполном списке полей пересчёт мог не попасть
+// в хранилище (например, изменилась только часть РК или разбивка НДФЛ).
 function paymentsEqual(a: Payment[], b: Payment[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -31,12 +46,20 @@ function paymentsEqual(a: Payment[], b: Payment[]): boolean {
     const pb = b[i]!;
     if (
       pa.id !== pb.id ||
+      pa.sourceId !== pb.sourceId ||
+      pa.type !== pb.type ||
+      pa.salaryAmount !== pb.salaryAmount ||
+      pa.regionalCoefficientPercent !== pb.regionalCoefficientPercent ||
       pa.gross !== pb.gross ||
+      pa.fact !== pb.fact ||
       pa.ndfl !== pb.ndfl ||
       pa.net !== pb.net ||
       pa.yearToDateGross !== pb.yearToDateGross ||
-      pa.fact !== pb.fact ||
-      !pa.date.equals(pb.date)
+      pa.yearToDateRcGross !== pb.yearToDateRcGross ||
+      pa.month !== pb.month ||
+      !pa.date.equals(pb.date) ||
+      pa.originalDate?.toString() !== pb.originalDate?.toString() ||
+      !ndflsEqual(pa.ndfls, pb.ndfls)
     ) {
       return false;
     }

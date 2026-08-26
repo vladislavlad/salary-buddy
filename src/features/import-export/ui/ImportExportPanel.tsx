@@ -80,11 +80,13 @@ export function ImportExportPanel() {
         variant: "success",
         description: "Данные загружены",
       });
-    } catch {
+    } catch (e) {
       toast({
         variant: "destructive",
         description:
-          "Ошибка при импорте данных. Убедитесь, что файл содержит корректные данные Salary Buddy.",
+          e instanceof Error
+            ? e.message
+            : "Ошибка при импорте данных",
       });
     } finally {
       e.target.value = "";

@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import type { Payment, CalendarData } from "@/shared/types";
 import { PaymentsContext } from "@/features/payments/model/PaymentsContext";
-import { useCalendar } from "@/features/calendar/hooks/useCalendar.ts";
+import { useCalendar } from "@/features/calendar/hooks/useCalendar";
 
 export function usePaymentsForYear(year: number): Payment[] {
   const ctx = useContext(PaymentsContext);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CalendarData } from "@/shared/types";
 import type { SickLeave, SickLeaveCreateRequest, SickLeaveUpdateRequest, SickLeaveSettings } from "@/shared/types/sick-leave";
@@ -96,13 +96,20 @@ export function useSickLeaves(
     [service, invalidate],
   );
 
+  // Актуальные настройки для последовательных async-обновлений
+  // (save нельзя выполнять внутри updater-функции setSettings).
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+
   const updateSettingsState = useCallback(
     async (partial: Partial<SickLeaveSettings>): Promise<void> => {
-      setSettings((prev) => {
-        const updated = SickLeaveSettingsSchema.parse({ ...prev, ...partial });
-        settingsRepository.save(updated);
-        return updated;
+      const updated = SickLeaveSettingsSchema.parse({
+        ...settingsRef.current,
+        ...partial,
       });
+      settingsRef.current = updated;
+      setSettings(updated);
+      await settingsRepository.save(updated);
     },
     [settingsRepository],
   );

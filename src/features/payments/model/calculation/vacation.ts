@@ -60,6 +60,24 @@ export function getRcForPeriod(
   return total;
 }
 
+// Длительность расчётного периода среднего заработка, месяцев.
+const CALC_PERIOD_MONTHS = 12;
+
+// m-й месяц расчётного периода, отсчитывая назад от месяца отпуска
+// (m = 0 → месяц, предшествующий месяцу отпуска).
+function calcPeriodMonth(
+  vacStartYear: number,
+  vacStartMonth: number,
+  m: number,
+): { year: number; month: number } {
+  const monthNum = (vacStartMonth - 13 + m) % 12;
+  const month = monthNum <= 0 ? monthNum + 12 : monthNum;
+  return {
+    year: month >= vacStartMonth ? vacStartYear - 1 : vacStartYear,
+    month,
+  };
+}
+
 export function calculateVacationPayment(
   vacation: Vacation,
   vacations: Vacation[],
@@ -84,7 +102,7 @@ export function calculateVacationPayment(
   // Для отпуска в фев 2025 это [фев 2024, фев 2025): месяц отпуска исключён,
   // прошлый год учитывается полностью.
   const periodEnd = ld(vacStartYear, vacStartMonth, 1);
-  const periodStart = periodEnd.subtract({ months: 12 });
+  const periodStart = periodEnd.subtract({ months: CALC_PERIOD_MONTHS });
 
   // Отпускные за прошлые отпуска НЕ входят в доход (они не попадают в
   // paymentsForIncome), а отпускные дни исключаются из includedDays ниже –
@@ -106,13 +124,12 @@ export function calculateVacationPayment(
   });
 
   let includedDays = 0;
-  for (let m = 0; m < 12; m++) {
-    const monthNum = (vacStartMonth - 13 + m) % 12;
-    const adjustedMonth = monthNum <= 0 ? monthNum + 12 : monthNum;
-    let adjustedYear = vacStartYear;
-    if (adjustedMonth >= vacStartMonth) {
-      adjustedYear -= 1;
-    }
+  for (let m = 0; m < CALC_PERIOD_MONTHS; m++) {
+    const { year: adjustedYear, month: adjustedMonth } = calcPeriodMonth(
+      vacStartYear,
+      vacStartMonth,
+      m,
+    );
     const monthDate = ld(adjustedYear, adjustedMonth, 1);
     const calDaysInMonth = monthDate.daysInMonth;
 

@@ -17,6 +17,7 @@ import type {
   PaymentDistribution,
   SalaryChange,
 } from "@/shared/types";
+import { generateSalaryId } from "@/features/salary/model/salaryRules";
 import { SalaryChangeForm } from "./SalaryChangeForm";
 import { SalaryChangeCard } from "./SalaryChangeCard";
 
@@ -47,7 +48,7 @@ export function SalaryManager({
     const newChange: SalaryChange = {
       effectiveDate: data.effectiveDate,
       amount: data.amount,
-      id: data.id ?? crypto.randomUUID(),
+      id: data.id ?? generateSalaryId(salaries, data.effectiveDate.year),
     };
     const updated = data.id
       ? salaries.map((c) => (c.id === data.id ? newChange : c))

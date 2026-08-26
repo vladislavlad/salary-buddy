@@ -13,6 +13,21 @@ function jsonReplacer(_key: string, value: unknown): unknown {
   return value;
 }
 
+/**
+ * Создаёт LocalStorageRepository для списка сущностей по схеме элемента.
+ * Каст здесь нужен: LocalDateSchema – юнион string | PlainDate, поэтому
+ * вычисляемый output-тип z.array(схема) шире, чем тип доменной сущности.
+ */
+export function createListRepository<T extends { id: string }>(
+  storageKey: string,
+  itemSchema: z.ZodTypeAny,
+): LocalStorageRepository<T> {
+  return new LocalStorageRepository<T>(
+    storageKey,
+    z.array(itemSchema) as z.ZodType<T[]>,
+  );
+}
+
 /** Универсальный repository поверх localStorage. */
 export class LocalStorageRepository<
   T extends { id: string },

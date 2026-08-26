@@ -4,10 +4,10 @@ import type {
   BonusUpdateRequest,
 } from "@/shared/types";
 import type { Result } from "@/shared/result";
+import { nextSequenceId } from "@/shared/lib/ids";
 
 function generateBonusId(bonuses: Bonus[], year: number): string {
-  const count = bonuses.filter((bonus) => bonus.date.year === year).length + 1;
-  return `bon:${year}:${String(count).padStart(2, "0")}`;
+  return nextSequenceId("bon:", year, bonuses.map((b) => b.id));
 }
 
 function validateAmount(amount: number): Result<null> {

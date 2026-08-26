@@ -1,5 +1,6 @@
 import type {
   SalaryCalculationSettings,
+  SalaryChange,
   Bonus,
   Payment,
   CalendarData,
@@ -15,9 +16,9 @@ import type { LocalDate } from "@/shared/types/local-date";
 /** Параметры фазы генерации событий аванс/зарплата. */
 export interface BuildSalaryParams {
   settings: SalaryCalculationSettings;
-  sortedChanges: ReturnType<typeof import("./salary").sortSalaryChanges>;
-  sortedSurchargeChanges: ReturnType<typeof import("./surcharge").sortSurchargeChanges>;
-  sortedRegionalCoefficientChanges?: ReturnType<typeof import("./regionalCoefficient").sortRegionalCoefficientChanges>;
+  sortedChanges: readonly SalaryChange[];
+  sortedSurchargeChanges: readonly SurchargeChange[];
+  sortedRegionalCoefficientChanges?: readonly RegionalCoefficientChange[];
   vacations: Vacation[];
   sickLeaves: SickLeave[];
   calendarsByYear: Map<number, CalendarData>;
@@ -41,8 +42,8 @@ export interface SickLeavePhaseParams {
   sickLeaves: SickLeave[];
   sickLeaveSettings: SickLeaveSettings | undefined;
   calendarsByYear: Map<number, CalendarData>;
-  sortedChanges: ReturnType<typeof import("./salary").sortSalaryChanges>;
-  sortedRegionalCoefficientChanges?: ReturnType<typeof import("./regionalCoefficient").sortRegionalCoefficientChanges>;
+  sortedChanges: readonly SalaryChange[];
+  sortedRegionalCoefficientChanges?: readonly RegionalCoefficientChange[];
   paymentDatesByMonth: Map<string, MonthPaymentDates>;
   factBySource: Map<string, number>;
 }
@@ -70,7 +71,9 @@ export interface CalculateAllInput {
 }
 
 export interface RawEvent {
-  sourceId: string; // ID сущности-источника: sal:{y}:{m}:a, bon:{y}:{seq}, vac:{y}:{seq}, sur:{y}:{m}, sick:{y}:{seq}
+  // ID сущности-источника: sal:{y}:{m}:a, sur:{y}:{m}, {bonus.id}, {vacation.id},
+  // {sickLeave.id}[:emp|sfr|topup:{y}:{m}:{a|b}]
+  sourceId: string;
   date: LocalDate;
   originalDate?: LocalDate;
   type: PaymentType;

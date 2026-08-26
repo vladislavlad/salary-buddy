@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import type { CalendarData, LocalDate, Payment } from "@/shared/types";
 import { isDayOff } from "@/features/calendar/model/calendar";
-import { formatCurrency } from "@/shared/lib/format";
+import { formatMoney } from "@/shared/lib/money";
 import {
   PAY_VAR_SUFFIX,
   getHighestPriority,
@@ -58,7 +58,7 @@ export function DayCell({
   const highestType = hasItem ? getHighestPriority(dayPayments!) : null;
 
   // Inline style для цветов ячеек – берёт CSS-переменные из темы
-  const payVarSuffix = PAY_VAR_SUFFIX[highestType ?? ""] ?? "salary";
+  const payVarSuffix = highestType ? PAY_VAR_SUFFIX[highestType] : "salary";
 
   const cellPayStyle: React.CSSProperties | undefined =
     isCurrentMonth && hasItem
@@ -129,7 +129,7 @@ export function DayCell({
   );
 
   const tooltip = hasItem
-    ? formatCurrency(dayPayments!.reduce((sum, p) => sum + p.net, 0))
+    ? formatMoney(dayPayments!.reduce((sum, p) => sum + p.net, 0))
     : isVacationDay
       ? "Отпуск"
       : isSickDay

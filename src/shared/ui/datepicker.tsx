@@ -42,10 +42,11 @@ export function DatePicker({
   // Позиционирование попвера с учётом границ экрана
   const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({});
 
-  useLayoutEffect(() => {
-    if (!isOpen || !triggerRef.current) return;
+  const updatePosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!isOpen || !trigger) return;
 
-    const triggerRect = triggerRef.current.getBoundingClientRect();
+    const triggerRect = trigger.getBoundingClientRect();
     const viewportW = window.innerWidth;
     const viewportH = window.innerHeight;
 
@@ -74,6 +75,28 @@ export function DatePicker({
       zIndex: 50,
     });
   }, [isOpen]);
+
+  useLayoutEffect(() => {
+    updatePosition();
+  }, [updatePosition]);
+
+  // Пока попвер открыт: следим за resize/scroll (позиция fixed привязана
+  // к вьюпорту) и закрываем по Escape.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, updatePosition]);
 
   useEffect(() => {
     if (value) {
@@ -124,6 +147,12 @@ export function DatePicker({
 
   // Кэшируем сегодняшнюю дату вне цикла
   const today = localToday();
+
+  // Сетка дней: количество дней в месяце и отступ перед первым числом
+  // (ISO day of week: 1=Mon) берём от ПЕРВОГО числа месяца, а не от viewDate.
+  const daysInMonth = viewDate.daysInMonth;
+  const firstOfMonth = localDate(currentYear, viewDate.month, 1);
+  const dayGridPadding = firstOfMonth.dayOfWeek - 1;
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -240,71 +269,59 @@ export function DatePicker({
               </div>
             </div>
           ) : (
-            (() => {
-              const currentMonth = viewDate.month;
-              // Дней в месяце через Temporal
-              const daysInMonth = viewDate.daysInMonth;
-              // ISO day of week: 1=Mon, 7=Sun → padding for Mon-start grid
-              // Важно: берём от первого числа месяца, а не от viewDate!
-              const firstOfMonth = localDate(currentYear, currentMonth, 1);
-              const padding = firstOfMonth.dayOfWeek - 1;
-
-              return (
-                <>
-                  {/* Дни недели */}
-                  <div className="grid grid-cols-7 gap-0.5 mb-0.5">
-                    {WEEKDAY_NAMES.map((d) => (
-                      <div
-                        key={d}
-                        className="text-center text-[10px] font-medium text-muted-foreground py-0.5"
-                      >
-                        {d}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Ячейки дней */}
+            <>
+              {/* Дни недели */}
+              <div className="grid grid-cols-7 gap-0.5 mb-0.5">
+                {WEEKDAY_NAMES.map((d) => (
                   <div
-                    className="grid grid-cols-7 gap-0.5"
-                    key={`${currentYear}-${currentMonth}`}
+                    key={d}
+                    className="text-center text-[10px] font-medium text-muted-foreground py-0.5"
                   >
-                    {Array.from({ length: daysInMonth }).map((_, i) => {
-                      const dayNum = i + 1;
-                      const dayDate = localDate(
-                        currentYear,
-                        currentMonth,
-                        dayNum,
-                      );
-                      const isSelected = value ? value.equals(dayDate) : false;
-                      const isTodayFlag = today.equals(dayDate);
-
-                      return (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => handleSelect(dayDate)}
-                          style={
-                            i === 0
-                              ? { gridColumnStart: padding + 1 }
-                              : undefined
-                          }
-                          className={cn(
-                            "h-8 w-10 text-sm rounded-md flex items-center justify-center transition-colors",
-                            isSelected
-                              ? "bg-primary text-primary-foreground font-bold"
-                              : isTodayFlag
-                                ? "bg-accent text-foreground font-semibold"
-                                : "hover:bg-accent",
-                          )}
-                        >
-                          {dayNum}
-                        </button>
-                      );
-                    })}
+                    {d}
                   </div>
-                </>
-              );
-            })()
+                ))}
+              </div>
+
+              {/* Ячейки дней */}
+              <div
+                className="grid grid-cols-7 gap-0.5"
+                key={`${currentYear}-${viewDate.month}`}
+              >
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const dayNum = i + 1;
+                  const dayDate = localDate(
+                    currentYear,
+                    viewDate.month,
+                    dayNum,
+                  );
+                  const isSelected = value ? value.equals(dayDate) : false;
+                  const isTodayFlag = today.equals(dayDate);
+
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => handleSelect(dayDate)}
+                      style={
+                        i === 0
+                          ? { gridColumnStart: dayGridPadding + 1 }
+                          : undefined
+                      }
+                      className={cn(
+                        "h-8 w-10 text-sm rounded-md flex items-center justify-center transition-colors",
+                        isSelected
+                          ? "bg-primary text-primary-foreground font-bold"
+                          : isTodayFlag
+                            ? "bg-accent text-foreground font-semibold"
+                            : "hover:bg-accent",
+                      )}
+                    >
+                      {dayNum}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       )}

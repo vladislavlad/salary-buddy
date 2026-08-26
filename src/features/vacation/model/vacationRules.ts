@@ -10,10 +10,10 @@ import {
   isOfficialHoliday,
 } from "@/features/calendar/model/calendar";
 import type { Result } from "@/shared/result";
+import { nextSequenceId } from "@/shared/lib/ids";
 
 function generateVacationId(vacations: Vacation[], year: number): string {
-  const count = vacations.filter((v) => v.startDate.year === year).length + 1;
-  return `vac:${year}:${String(count).padStart(2, "0")}`;
+  return nextSequenceId("vac:", year, vacations.map((v) => v.id));
 }
 
 function getCalendar(
