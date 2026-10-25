@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { SickLeaveApplicationService } from "@/features/sick-leave/model/SickLeaveApplicationService";
-import type { CalendarData, SickLeave } from "@/shared/types";
+import { SickLeaveSettingsApplicationService } from "@/features/sick-leave/model/SickLeaveSettingsApplicationService";
+import type {
+  CalendarData,
+  SickLeave,
+  SickLeaveSettings,
+} from "@/shared/types";
 import { localDate } from "@/shared/types/local-date";
 import { loadCalendars } from "./fixtures/calendars";
 import { InMemoryRepository } from "./fixtures/InMemoryRepository";
@@ -211,5 +216,79 @@ describe("sick-leave-service", () => {
 
     const all = await service.findAll();
     expect(all.length).toBe(2);
+  });
+});
+
+// Фейковый репозиторий настроек: в памяти, без localStorage
+class FakeSickLeaveSettingsRepository {
+  saved: SickLeaveSettings | null = null;
+
+  async get(): Promise<SickLeaveSettings | null> {
+    return this.saved;
+  }
+
+  async save(settings: SickLeaveSettings): Promise<void> {
+    this.saved = settings;
+  }
+
+  async clear(): Promise<void> {
+    this.saved = null;
+  }
+}
+
+describe("SickLeaveSettingsApplicationService", () => {
+  it("getSettings: без сохранённых – значения по умолчанию", async () => {
+    const service = new SickLeaveSettingsApplicationService(
+      new FakeSickLeaveSettingsRepository(),
+    );
+
+    expect(await service.getSettings()).toEqual({
+      enableTopUp: false,
+      topUpDaysLimitPerYear: 20,
+    });
+  });
+
+  it("getSettings: возвращает сохранённые настройки", async () => {
+    const repository = new FakeSickLeaveSettingsRepository();
+    repository.saved = { enableTopUp: true, topUpDaysLimitPerYear: 30 };
+    const service = new SickLeaveSettingsApplicationService(repository);
+
+    expect(await service.getSettings()).toEqual({
+      enableTopUp: true,
+      topUpDaysLimitPerYear: 30,
+    });
+  });
+
+  it("updateSettings: применяет partial к сохранённому и сохраняет результат", async () => {
+    const repository = new FakeSickLeaveSettingsRepository();
+    repository.saved = { enableTopUp: true, topUpDaysLimitPerYear: 30 };
+    const service = new SickLeaveSettingsApplicationService(repository);
+
+    const next = await service.updateSettings({ topUpDaysLimitPerYear: 15 });
+
+    expect(next).toEqual({ enableTopUp: true, topUpDaysLimitPerYear: 15 });
+    expect(repository.saved).toEqual(next);
+  });
+
+  it("updateSettings: последовательные обновления применяются к актуальному состоянию", async () => {
+    const service = new SickLeaveSettingsApplicationService(
+      new FakeSickLeaveSettingsRepository(),
+    );
+
+    await service.updateSettings({ enableTopUp: true });
+    const next = await service.updateSettings({ topUpDaysLimitPerYear: 10 });
+
+    expect(next).toEqual({ enableTopUp: true, topUpDaysLimitPerYear: 10 });
+    expect(await service.getSettings()).toEqual(next);
+  });
+
+  it("updateSettings: невалидное значение отклоняется zod-схемой", async () => {
+    const service = new SickLeaveSettingsApplicationService(
+      new FakeSickLeaveSettingsRepository(),
+    );
+
+    await expect(
+      service.updateSettings({ topUpDaysLimitPerYear: 0 }),
+    ).rejects.toThrow();
   });
 });

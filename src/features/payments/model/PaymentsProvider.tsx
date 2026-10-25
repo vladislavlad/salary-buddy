@@ -8,22 +8,33 @@ import { useSurchargeProvider } from "@/features/surcharge/hooks/useSurchargePro
 import { useRegionalCoefficientProvider } from "@/features/regional-coefficient/hooks/useRegionalCoefficientProvider";
 import { useCalendar } from "@/features/calendar/hooks/useCalendar";
 import type { Payment } from "@/shared/types";
+import type { Repository } from "@/shared/repository/Repository";
 import { PaymentsContext } from "./PaymentsContext";
-import { paymentsRepository } from "@/app/repositories";
 import {
   PaymentsApplicationService,
   type PaymentCalculationInput,
 } from "./PaymentsApplicationService";
 
-export function PaymentsProvider({ children }: { children: React.ReactNode }) {
+export function PaymentsProvider({
+  children,
+  repository,
+}: {
+  children: React.ReactNode;
+  repository: Repository<Payment, string>;
+}) {
   const { salaries, loading: salariesLoading } = useSalaryProvider();
   const { paymentSettings, loading: settingsLoading } =
     useSalaryPaymentSettingsProvider();
   const { bonuses, loading: bonusesLoading } = useBonusesProvider();
   const { surcharges, loading: surchargesLoading } = useSurchargeProvider();
-  const { coefficients, loading: coefficientsLoading } = useRegionalCoefficientProvider();
+  const { coefficients, loading: coefficientsLoading } =
+    useRegionalCoefficientProvider();
   const { vacations, loading: vacationsLoading } = useVacationsProvider();
-  const { sickLeaves, settings: sickLeaveSettings, loading: sickLeavesLoading } = useSickLeavesProvider();
+  const {
+    sickLeaves,
+    settings: sickLeaveSettings,
+    loading: sickLeavesLoading,
+  } = useSickLeavesProvider();
   const { calendars, isLoading: calendarLoading } = useCalendar();
   const [payments, setPayments] = useState<Payment[]>([]);
 
@@ -40,8 +51,8 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
     !calendarLoading;
 
   const service = useMemo(
-    () => new PaymentsApplicationService(paymentsRepository),
-    [],
+    () => new PaymentsApplicationService(repository),
+    [repository],
   );
 
   const input: PaymentCalculationInput = useMemo(
@@ -58,7 +69,17 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
       sickLeaveSettings,
       calendars,
     }),
-    [paymentSettings, salaries, bonuses, surcharges, coefficients, vacations, sickLeaves, sickLeaveSettings, calendars],
+    [
+      paymentSettings,
+      salaries,
+      bonuses,
+      surcharges,
+      coefficients,
+      vacations,
+      sickLeaves,
+      sickLeaveSettings,
+      calendars,
+    ],
   );
 
   useEffect(() => {

@@ -1,15 +1,22 @@
 import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  LOCAL_QUERY_KEY,
+  LOCAL_QUERY_OPTIONS,
+} from "@/shared/query/localQuery";
 import type { SalaryPaymentSettings } from "@/shared/types";
-import { salaryPaymentSettingsRepository } from "@/app/repositories";
+import type { SalaryPaymentSettingsRepository } from "@/features/salary-payment-settings/repository/SalaryPaymentSettingsRepository";
 import { DEFAULT_SALARY_PAYMENT_SETTINGS } from "@/features/salary-payment-settings/model/defaultSalaryPaymentSettings";
 import { SalaryPaymentSettingsApplicationService } from "@/features/salary-payment-settings/model/SalaryPaymentSettingsApplicationService";
 
 export const SALARY_PAYMENT_SETTINGS_QUERY_KEY = [
+  ...LOCAL_QUERY_KEY,
   "salary-payment-settings",
 ] as const;
 
-export function useSalaryPaymentSettingsService(): {
+export function useSalaryPaymentSettingsService(
+  repository: SalaryPaymentSettingsRepository,
+): {
   paymentSettings: SalaryPaymentSettings;
   loading: boolean;
   updatePaymentSettings: (
@@ -18,15 +25,13 @@ export function useSalaryPaymentSettingsService(): {
 } {
   const queryClient = useQueryClient();
   const service = useMemo(
-    () =>
-      new SalaryPaymentSettingsApplicationService(
-        salaryPaymentSettingsRepository,
-      ),
-    [],
+    () => new SalaryPaymentSettingsApplicationService(repository),
+    [repository],
   );
 
-  const { data: paymentSettings = DEFAULT_SALARY_PAYMENT_SETTINGS, isLoading } =
+  const { data: paymentSettings = DEFAULT_SALARY_PAYMENT_SETTINGS, isFetching } =
     useQuery({
+      ...LOCAL_QUERY_OPTIONS,
       queryKey: SALARY_PAYMENT_SETTINGS_QUERY_KEY,
       queryFn: () => service.getSettings(),
     });
@@ -41,5 +46,5 @@ export function useSalaryPaymentSettingsService(): {
     [service, queryClient],
   );
 
-  return { paymentSettings, loading: isLoading, updatePaymentSettings };
+  return { paymentSettings, loading: isFetching, updatePaymentSettings };
 }

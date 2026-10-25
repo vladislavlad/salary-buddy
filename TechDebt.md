@@ -2,6 +2,11 @@
 
 ## 2. useFactEditor: priorYtdGrossKop неверен при повторном установлении факта
 
+✅ Выполнено (25.10.2026): `priorYtdGrossKop = yearToDateGross − (net + ndfl)`
+(эффективный gross), выплаты без НДФЛ (доплата, СФР) вынесены в отдельную
+ветку `noNdfl` без обратного расчёта. Тесты: `__tests__/fact-editor.test.tsx`.
+Приближение про отдельную базу РК в `grossFromNet` осталось (см. COEF_TODO п.1).
+
 `src/features/calendar/hooks/useFactEditor.ts:50`:
 `priorYtdGrossKop = payment.yearToDateGross - payment.gross`.
 Когда на платеже есть `fact`, `yearToDateGross` уже посчитан от fact
@@ -49,6 +54,12 @@ date-fns форматирует в локальном времени, в поя�
 
 ## 10. Обратная зависимость features → app/repositories
 
+✅ Выполнено (25.10.2026): все провайдеры фич принимают репозитории пропсами,
+единственная точка сборки – `AppProviders`; импортов `@/app/repositories`
+в фичах нет. `CalendarProvider` читает настройки через
+`useCalendarSettingsProvider` (контекст), фабрики `createService` заменены
+prop'ом `repository`.
+
 Все фичи импортируют репозитории напрямую из `app/` (11 мест), а import-export
 получает их через контекст — два разных паттерна DI.
 
@@ -63,10 +74,19 @@ VacationsProvider, SickLeavesProvider, CalendarSettingsProvider.
 
 ## 12. Два паттерна загрузки настроек
 
-react-query: calendar-settings, salary-payment-settings; useState + useEffect:
-useSickLeaves (настройки больничных).
-**Решение (рекомендация):** перевести useSickLeaves на react-query — единый
-паттерн кэширования/инвалидации и `loading`.
+✅ Выполнено (25.10.2026): TanStack Query принят как единый механизм чтения
+локальных асинхронных источников и внешних календарей. Решение и причины
+зафиксированы в `AGENTS.md`, `README.md` и `openspec/config.yaml`.
+Все локальные запросы используют общий префикс `LOCAL_QUERY_KEY` и
+`LOCAL_QUERY_OPTIONS` (`networkMode: "always"`, `retry: false`); после импорта
+обновляются только локальные запросы. Настройки больничных загружаются этим
+же способом, `loading` покрывает список и настройки.
+
+Частичные обновления настроек больничных и дат выплат сериализуются по
+репозиторию, включая разные экземпляры сервисов; невалидные изменения
+отклоняются до записи, очередь продолжает работу после ошибок.
+Тесты: `__tests__/settings-updates.test.ts`, `__tests__/local-queries.test.tsx`,
+`__tests__/sick-leave-service.test.ts`.
 
 ## 13. HOLIDAYS_BY_YEAR: замечание с review отозвано
 

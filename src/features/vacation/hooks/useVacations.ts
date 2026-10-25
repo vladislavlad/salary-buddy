@@ -1,20 +1,20 @@
 import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CalendarData } from "@/shared/types";
+import {
+  LOCAL_QUERY_KEY,
+  LOCAL_QUERY_OPTIONS,
+} from "@/shared/query/localQuery";
 import type {
   Vacation,
   VacationCreateRequest,
   VacationUpdateRequest,
 } from "@/shared/types/vacation";
 import type { Result } from "@/shared/result";
-import type { VacationService } from "@/features/vacation/model/VacationService";
+import { VacationApplicationService } from "@/features/vacation/model/VacationApplicationService";
+import type { Repository } from "@/shared/repository/Repository";
 import { useCalendar } from "@/features/calendar/hooks/useCalendar";
 
-export const VACATIONS_QUERY_KEY = ["vacations"] as const;
-
-export type VacationServiceFactory = (
-  calendars: ReadonlyMap<number, CalendarData>,
-) => VacationService;
+export const VACATIONS_QUERY_KEY = [...LOCAL_QUERY_KEY, "vacations"] as const;
 
 export interface UseVacationsResult {
   vacations: Vacation[];
@@ -27,21 +27,23 @@ export interface UseVacationsResult {
 }
 
 export function useVacations(
-  createService: VacationServiceFactory,
+  repository: Repository<Vacation, string>,
 ): UseVacationsResult {
   const { calendars } = useCalendar();
   const queryClient = useQueryClient();
 
-  const service: VacationService = useMemo(
-    () => createService(calendars),
-    [createService, calendars],
+  // Сервис пересоздаётся при смене календарей: даты отпусков зависят от выходных
+  const service = useMemo(
+    () => new VacationApplicationService(repository, calendars),
+    [repository, calendars],
   );
 
   const {
     data: vacations = [],
-    isLoading,
+    isFetching,
     error,
   } = useQuery({
+    ...LOCAL_QUERY_OPTIONS,
     queryKey: VACATIONS_QUERY_KEY,
     queryFn: () => service.findAll(),
   });
@@ -83,7 +85,7 @@ export function useVacations(
 
   return {
     vacations,
-    loading: isLoading,
+    loading: isFetching,
     error: error ? error.message : null,
     reload,
     addVacation,

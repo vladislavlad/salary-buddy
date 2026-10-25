@@ -1,22 +1,16 @@
 import { VacationsContext } from "./VacationContext";
-import {
-  useVacations,
-  type VacationServiceFactory,
-} from "@/features/vacation/hooks/useVacations";
-import { vacationRepository } from "@/app/repositories";
-import { VacationApplicationService } from "@/features/vacation/model/VacationApplicationService";
-
-const defaultCreateService: VacationServiceFactory = (calendars) =>
-  new VacationApplicationService(vacationRepository, calendars);
+import { useVacations } from "@/features/vacation/hooks/useVacations";
+import type { Vacation } from "@/shared/types";
+import type { Repository } from "@/shared/repository/Repository";
 
 export function VacationsProvider({
   children,
-  createService,
+  repository,
 }: {
   children: React.ReactNode;
-  createService?: VacationServiceFactory;
+  repository: Repository<Vacation, string>;
 }) {
-  const service = useVacations(createService ?? defaultCreateService);
+  const service = useVacations(repository);
   return (
     <VacationsContext.Provider value={service}>
       {children}

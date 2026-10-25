@@ -13,6 +13,7 @@ import { SurchargeProvider } from "@/features/surcharge/model/SurchargeProvider"
 import { VacationsProvider } from "@/features/vacation/model/VacationsProvider";
 import {
   bonusRepository,
+  calendarSettingsRepository,
   paymentsRepository,
   regionalCoefficientRepository,
   salaryPaymentSettingsRepository,
@@ -23,6 +24,8 @@ import {
   vacationRepository,
 } from "@/app/repositories";
 
+// Единственная точка сборки репозиториев: фичи получают их пропсами,
+// напрямую на app-слой не зависят.
 const exportImportRepos: ExportImportRepositories = {
   salary: salaryRepository,
   bonus: bonusRepository,
@@ -38,16 +41,23 @@ const exportImportRepos: ExportImportRepositories = {
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <ExportImportRepositoriesProvider value={exportImportRepos}>
-      <CalendarSettingsProvider>
+      <CalendarSettingsProvider repository={calendarSettingsRepository}>
         <CalendarProvider>
-          <SalaryPaymentSettingsProvider>
-            <SalaryProvider>
-              <SurchargeProvider>
-                <RegionalCoefficientProvider>
-                  <BonusesProvider>
-                    <VacationsProvider>
-                      <SickLeavesProvider>
-                        <PaymentsProvider>
+          <SalaryPaymentSettingsProvider
+            repository={salaryPaymentSettingsRepository}
+          >
+            <SalaryProvider repository={salaryRepository}>
+              <SurchargeProvider repository={surchargeRepository}>
+                <RegionalCoefficientProvider
+                  repository={regionalCoefficientRepository}
+                >
+                  <BonusesProvider repository={bonusRepository}>
+                    <VacationsProvider repository={vacationRepository}>
+                      <SickLeavesProvider
+                        repository={sickLeaveRepository}
+                        settingsRepository={sickLeaveSettingsRepository}
+                      >
+                        <PaymentsProvider repository={paymentsRepository}>
                           <TooltipProvider delayDuration={200}>
                             {children}
                           </TooltipProvider>

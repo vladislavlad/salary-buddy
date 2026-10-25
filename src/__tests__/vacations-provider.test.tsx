@@ -7,8 +7,6 @@ import { VacationsProvider } from "@/features/vacation/model/VacationsProvider";
 import { useVacationsProvider } from "@/features/vacation/hooks/useVacationsProvider";
 import { localDate } from "@/shared/types/local-date";
 import { loadCalendars } from "./fixtures/calendars";
-import { VacationApplicationService } from "@/features/vacation/model/VacationApplicationService";
-import type { VacationServiceFactory } from "@/features/vacation/hooks/useVacations";
 import { InMemoryRepository } from "./fixtures/InMemoryRepository";
 
 vi.mock("@/shared/ui/use-toast", () => ({
@@ -36,8 +34,6 @@ describe("VacationsProvider", () => {
       current: null,
     };
     const repository = new InMemoryRepository([]);
-    const createService: VacationServiceFactory = (calendars) =>
-      new VacationApplicationService(repository, calendars);
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -53,7 +49,7 @@ describe("VacationsProvider", () => {
             fallbackYears: new Set(),
           }}
         >
-          <VacationsProvider createService={createService}>
+          <VacationsProvider repository={repository}>
             <ContextConsumer exposeRef={ref} />
           </VacationsProvider>
         </CalendarContext.Provider>

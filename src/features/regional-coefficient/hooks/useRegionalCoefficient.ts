@@ -1,5 +1,9 @@
 import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  LOCAL_QUERY_KEY,
+  LOCAL_QUERY_OPTIONS,
+} from "@/shared/query/localQuery";
 import type {
   RegionalCoefficientChange,
   RegionalCoefficientCreateRequest,
@@ -7,9 +11,12 @@ import type {
 } from "@/shared/types";
 import type { Result } from "@/shared/result";
 import { RegionalCoefficientApplicationService } from "@/features/regional-coefficient/model/RegionalCoefficientApplicationService";
-import { regionalCoefficientRepository } from "@/app/repositories";
+import type { Repository } from "@/shared/repository/Repository";
 
-export const REGIONAL_COEFFICIENTS_QUERY_KEY = ["regionalCoefficients"] as const;
+export const REGIONAL_COEFFICIENTS_QUERY_KEY = [
+  ...LOCAL_QUERY_KEY,
+  "regionalCoefficients",
+] as const;
 
 export interface UseRegionalCoefficientResult {
   coefficients: RegionalCoefficientChange[];
@@ -23,17 +30,17 @@ export interface UseRegionalCoefficientResult {
   removeCoefficient: (coefficientId: string) => Promise<void>;
 }
 
-export function useRegionalCoefficientService(): UseRegionalCoefficientResult {
+export function useRegionalCoefficientService(
+  repository: Repository<RegionalCoefficientChange, string>,
+): UseRegionalCoefficientResult {
   const queryClient = useQueryClient();
   const service = useMemo(
-    () =>
-      new RegionalCoefficientApplicationService(
-        regionalCoefficientRepository,
-      ),
-    [],
+    () => new RegionalCoefficientApplicationService(repository),
+    [repository],
   );
 
-  const { data: coefficients = [], isLoading } = useQuery({
+  const { data: coefficients = [], isFetching } = useQuery({
+    ...LOCAL_QUERY_OPTIONS,
     queryKey: REGIONAL_COEFFICIENTS_QUERY_KEY,
     queryFn: () => service.findAll(),
   });
@@ -78,7 +85,7 @@ export function useRegionalCoefficientService(): UseRegionalCoefficientResult {
 
   return {
     coefficients,
-    loading: isLoading,
+    loading: isFetching,
     addCoefficient,
     updateCoefficient,
     removeCoefficient,

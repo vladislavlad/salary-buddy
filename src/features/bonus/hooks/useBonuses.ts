@@ -1,5 +1,9 @@
 import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  LOCAL_QUERY_KEY,
+  LOCAL_QUERY_OPTIONS,
+} from "@/shared/query/localQuery";
 import type {
   Bonus,
   BonusCreateRequest,
@@ -7,9 +11,9 @@ import type {
 } from "@/shared/types";
 import type { Result } from "@/shared/result";
 import { BonusApplicationService } from "@/features/bonus/model/BonusApplicationService";
-import { bonusRepository } from "@/app/repositories";
+import type { Repository } from "@/shared/repository/Repository";
 
-export const BONUSES_QUERY_KEY = ["bonuses"] as const;
+export const BONUSES_QUERY_KEY = [...LOCAL_QUERY_KEY, "bonuses"] as const;
 
 export interface UseBonusesResult {
   bonuses: Bonus[];
@@ -19,14 +23,17 @@ export interface UseBonusesResult {
   removeBonus: (bonusId: string) => Promise<void>;
 }
 
-export function useBonusesService(): UseBonusesResult {
+export function useBonusesService(
+  repository: Repository<Bonus, string>,
+): UseBonusesResult {
   const queryClient = useQueryClient();
   const service = useMemo(
-    () => new BonusApplicationService(bonusRepository),
-    [],
+    () => new BonusApplicationService(repository),
+    [repository],
   );
 
-  const { data: bonuses = [], isLoading } = useQuery({
+  const { data: bonuses = [], isFetching } = useQuery({
+    ...LOCAL_QUERY_OPTIONS,
     queryKey: BONUSES_QUERY_KEY,
     queryFn: () => service.findAll(),
   });
@@ -62,5 +69,5 @@ export function useBonusesService(): UseBonusesResult {
     [service, invalidate],
   );
 
-  return { bonuses, loading: isLoading, addBonus, updateBonus, removeBonus };
+  return { bonuses, loading: isFetching, addBonus, updateBonus, removeBonus };
 }

@@ -2,23 +2,24 @@ import { useCallback, useMemo, useState } from "react";
 import type { Payment } from "@/shared/types";
 import { grossFromNet } from "@/features/payments/model/calculation-engine";
 
-interface SurchargeEditingContext {
+// Выплаты без НДФЛ: на руки = gross, обратный расчёт grossFromNet не нужен.
+interface NoNdflEditingContext {
   payment: Payment;
   validNet: boolean;
   roundedNetKop: number;
-  isSurcharge: true;
+  noNdfl: true;
 }
 
-interface NonSurchargeEditingContext {
+interface TaxedEditingContext {
   payment: Payment;
   validNet: boolean;
   roundedNetKop: number;
-  isSurcharge: false;
+  noNdfl: false;
   priorYtdGrossKop: number;
   year: number;
 }
 
-type EditingContext = SurchargeEditingContext | NonSurchargeEditingContext;
+type EditingContext = NoNdflEditingContext | TaxedEditingContext;
 
 export function useFactEditor(
   payments: Payment[],
@@ -37,35 +38,35 @@ export function useFactEditor(
       editValue.replace(/[^0-9.,]/g, "").replace(",", "."),
     );
     const validNet = !isNaN(netValRub) && netValRub > 0;
-    // Для доплаты grossFromNet не нужен – на руки = gross (НДФЛ = 0)
-    if (payment.type === "surcharge") {
+    // Для доплаты и СФР-части НДФЛ = 0: на руки = gross
+    if (payment.type === "surcharge" || payment.type === "sick-leave-sfr") {
       return {
         payment,
         validNet,
         roundedNetKop: Math.round(netValRub * 100),
-        isSurcharge: true as const,
+        noNdfl: true as const,
       };
     }
-    // priorYtdGross уже в копейках (Payment.gross и Payment.yearToDateGross – копейки)
-    const priorYtdGrossKop = payment.yearToDateGross - payment.gross;
+    // Накопленный доход ДО этой выплаты (копейки). yearToDateGross хранит
+    // доход ПОСЛЕ выплаты и уже включает эффективный gross (fact, если
+    // установлен), поэтому вычитаем эффективный gross = net + ndfl,
+    // а не плановый payment.gross.
+    const priorYtdGrossKop =
+      payment.yearToDateGross - (payment.net + payment.ndfl);
     const year = payment.date.year;
     return {
       payment,
       validNet,
       roundedNetKop: Math.round(netValRub * 100),
-      isSurcharge: false as const,
+      noNdfl: false as const,
       priorYtdGrossKop,
       year,
     };
   }, [editingId, payments, editValue]);
 
-  // Превью gross при вводе net (для доплаты – нет превью, т.к. на руки = gross) – копейки
+  // Превью gross при вводе net (для выплат без НДФЛ – нет превью, т.к. на руки = gross) – копейки
   const editPreviewGrossKop = useMemo(() => {
-    if (
-      !editingContext ||
-      !editingContext.validNet ||
-      editingContext.isSurcharge
-    )
+    if (!editingContext || !editingContext.validNet || editingContext.noNdfl)
       return null;
     return grossFromNet(
       editingContext.roundedNetKop,
@@ -88,8 +89,8 @@ export function useFactEditor(
       setEditValue("");
       return;
     }
-    // Для доплаты: на руки = gross (НДФЛ = 0), не нужен обратный расчёт – копейки
-    if (editingContext.isSurcharge) {
+    // Для доплаты и СФР: на руки = gross (НДФЛ = 0), не нужен обратный расчёт – копейки
+    if (editingContext.noNdfl) {
       setFact(editingContext.payment.id, editingContext.roundedNetKop);
       setEditingId(null);
       setEditValue("");

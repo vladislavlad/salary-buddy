@@ -27,16 +27,25 @@ context: |
     ui – shadcn/ui primitives и общие компоненты
 
   ## State management
-  Feature providers + localStorage persistence.
+  Feature providers + TanStack Query для чтения всех асинхронных источников + localStorage persistence.
   SalaryProvider, SalaryPaymentSettingsProvider, SurchargeProvider,
   BonusesProvider, VacationsProvider, SickLeavesProvider,
-  CalendarProvider (TanStack Query), PaymentsProvider.
+  CalendarProvider, PaymentsProvider.
+  Локальные запросы: общий LOCAL_QUERY_KEY и LOCAL_QUERY_OPTIONS
+  (networkMode: always, retry: false); внешние календари имеют отдельную сетевую политику.
+  Хуки читают через Query; application services валидируют и сохраняют через repositories.
+  После записи хук ожидает инвалидацию соответствующего запроса; после импорта — всех локальных.
+  Данные репозитория не дублируются в useState/useEffect. React-состояние — формы, диалоги, read model выплат.
+  Частичные обновления настроек сериализуются по экземпляру репозитория; ошибка не блокирует очередь.
+  loading провайдеров покрывает первичное чтение и обновление (isFetching).
+  Пересчёт ждёт завершения загрузки всех источников, включая настройки.
+  Репозитории собираются в AppProviders и передаются пропсами; один граф репозиториев на QueryClient.
 
   ## Конвенции кода
   - Именованные экспорты по умолчанию
   - camelCase – переменные/функции, PascalCase – компоненты/типы
   - zod для валидации ввода и данных из persisted storage
-  - TanStack Query – только для асинхронной загрузки календарей
+  - TanStack Query — для асинхронных данных по правилам State management выше
   - Комментарии только на русском, только когда без них непонятно
 
   ## Критические правила

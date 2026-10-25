@@ -1,4 +1,6 @@
 import type { SalaryPaymentSettings } from "@/shared/types";
+import { SalaryPaymentSettingsSchema } from "@/shared/types";
+import { serializeRepositoryUpdate } from "@/shared/repository/serializeRepositoryUpdate";
 import { DEFAULT_SALARY_PAYMENT_SETTINGS } from "./defaultSalaryPaymentSettings";
 import type { SalaryPaymentSettingsRepository } from "@/features/salary-payment-settings/repository/SalaryPaymentSettingsRepository";
 
@@ -9,12 +11,17 @@ export class SalaryPaymentSettingsApplicationService {
     return (await this.repository.get()) ?? DEFAULT_SALARY_PAYMENT_SETTINGS;
   }
 
-  async updateSettings(
+  updateSettings(
     updates: Partial<SalaryPaymentSettings>,
   ): Promise<SalaryPaymentSettings> {
-    const current = await this.getSettings();
-    const next = { ...current, ...updates };
-    await this.repository.save(next);
-    return next;
+    return serializeRepositoryUpdate(this.repository, async () => {
+      const current = await this.getSettings();
+      const next = SalaryPaymentSettingsSchema.parse({
+        ...current,
+        ...updates,
+      });
+      await this.repository.save(next);
+      return next;
+    });
   }
 }

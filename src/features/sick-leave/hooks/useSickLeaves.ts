@@ -1,18 +1,33 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CalendarData } from "@/shared/types";
-import type { SickLeave, SickLeaveCreateRequest, SickLeaveUpdateRequest, SickLeaveSettings } from "@/shared/types/sick-leave";
-import { SickLeaveSettingsSchema } from "@/shared/types/sick-leave";
+import {
+  LOCAL_QUERY_KEY,
+  LOCAL_QUERY_OPTIONS,
+} from "@/shared/query/localQuery";
+import type {
+  SickLeave,
+  SickLeaveCreateRequest,
+  SickLeaveUpdateRequest,
+  SickLeaveSettings,
+} from "@/shared/types/sick-leave";
 import type { Result } from "@/shared/result";
-import type { SickLeaveService } from "@/features/sick-leave/model/SickLeaveService";
+import { SickLeaveApplicationService } from "../model/SickLeaveApplicationService";
+import {
+  DEFAULT_SICK_LEAVE_SETTINGS,
+  SickLeaveSettingsApplicationService,
+} from "../model/SickLeaveSettingsApplicationService";
 import type { SickLeaveSettingsRepository } from "../repository/SickLeaveSettingsRepository";
+import type { Repository } from "@/shared/repository/Repository";
 import { useCalendar } from "@/features/calendar/hooks/useCalendar";
 
-export const SICK_LEAVES_QUERY_KEY = ["sick-leaves"] as const;
-
-export type SickLeaveServiceFactory = (
-  calendars: ReadonlyMap<number, CalendarData>,
-) => SickLeaveService;
+export const SICK_LEAVES_QUERY_KEY = [
+  ...LOCAL_QUERY_KEY,
+  "sick-leaves",
+] as const;
+export const SICK_LEAVE_SETTINGS_QUERY_KEY = [
+  ...LOCAL_QUERY_KEY,
+  "sick-leave-settings",
+] as const;
 
 interface UseSickLeavesResult {
   sickLeaves: SickLeave[];
@@ -26,39 +41,41 @@ interface UseSickLeavesResult {
   updateSettings(settings: Partial<SickLeaveSettings>): Promise<void>;
 }
 
-const defaultSettings = SickLeaveSettingsSchema.parse({});
-
 export function useSickLeaves(
-  createService: SickLeaveServiceFactory,
+  repository: Repository<SickLeave, string>,
   settingsRepository: SickLeaveSettingsRepository,
 ): UseSickLeavesResult {
   const { calendars } = useCalendar();
   const queryClient = useQueryClient();
-  const [settings, setSettings] = useState<SickLeaveSettings>(defaultSettings);
 
-  // Загружаем настройки при монтировании.
-  useEffect(() => {
-    let cancelled = false;
-    settingsRepository.get().then((saved) => {
-      if (!cancelled && saved) setSettings(saved);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [settingsRepository]);
+  // Сервис пересоздаётся при смене календарей: валидация дат зависит от выходных
+  const service = useMemo(
+    () => new SickLeaveApplicationService(repository, calendars),
+    [repository, calendars],
+  );
 
-  const service: SickLeaveService = useMemo(
-    () => createService(calendars),
-    [createService, calendars],
+  const settingsService = useMemo(
+    () => new SickLeaveSettingsApplicationService(settingsRepository),
+    [settingsRepository],
   );
 
   const {
     data: sickLeaves = [],
-    isLoading,
+    isFetching,
     error,
   } = useQuery({
+    ...LOCAL_QUERY_OPTIONS,
     queryKey: SICK_LEAVES_QUERY_KEY,
     queryFn: () => service.findAll(),
+  });
+
+  const {
+    data: settings = DEFAULT_SICK_LEAVE_SETTINGS,
+    isFetching: settingsLoading,
+  } = useQuery({
+    ...LOCAL_QUERY_OPTIONS,
+    queryKey: SICK_LEAVE_SETTINGS_QUERY_KEY,
+    queryFn: () => settingsService.getSettings(),
   });
 
   const invalidate = useCallback(
@@ -96,33 +113,27 @@ export function useSickLeaves(
     [service, invalidate],
   );
 
-  // Актуальные настройки для последовательных async-обновлений
-  // (save нельзя выполнять внутри updater-функции setSettings).
-  const settingsRef = useRef(settings);
-  settingsRef.current = settings;
-
-  const updateSettingsState = useCallback(
+  const updateSettings = useCallback(
     async (partial: Partial<SickLeaveSettings>): Promise<void> => {
-      const updated = SickLeaveSettingsSchema.parse({
-        ...settingsRef.current,
-        ...partial,
+      await settingsService.updateSettings(partial);
+      await queryClient.invalidateQueries({
+        queryKey: SICK_LEAVE_SETTINGS_QUERY_KEY,
       });
-      settingsRef.current = updated;
-      setSettings(updated);
-      await settingsRepository.save(updated);
     },
-    [settingsRepository],
+    [settingsService, queryClient],
   );
 
+  // loading покрывает и список, и настройки: PaymentsProvider стартует
+  // пересчёт только когда все источники загружены
   return {
     sickLeaves,
     settings,
-    loading: isLoading,
+    loading: isFetching || settingsLoading,
     error: error ? error.message : null,
     reload,
     addSickLeave,
     updateSickLeave,
     removeSickLeave,
-    updateSettings: updateSettingsState,
+    updateSettings,
   };
 }

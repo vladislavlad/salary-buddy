@@ -1,13 +1,7 @@
 import { type ChangeEvent, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Download, Upload, Trash2 } from "lucide-react";
 
-import {
-  collectExportData,
-  importFromFile,
-  clearAll,
-} from "@/features/import-export/model/exportImport";
-import { useExportImportRepositories } from "@/features/import-export/model/ExportImportRepositoriesContext";
+import { useImportExport } from "../hooks/useImportExport";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -20,16 +14,15 @@ import {
 import { useToast } from "@/shared/ui/use-toast";
 
 export function ImportExportPanel() {
-  const repos = useExportImportRepositories();
+  const { exportData, importData, clearData } = useImportExport();
   const importRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
 
   const handleExport = async () => {
     try {
-      const data = await collectExportData(repos);
+      const data = await exportData();
       const blob = new Blob([JSON.stringify(data, null, 2)], {
         type: "application/json",
       });
@@ -55,9 +48,8 @@ export function ImportExportPanel() {
   const handleClear = async () => {
     setClearing(true);
     try {
-      await clearAll(repos);
-      // Полная перезагрузка – гарантированно сбрасывает все стейты (react-query
-      // и локальные стейты настроек), чтобы UI не остался с устаревшими данными.
+      await clearData();
+      // Перезагрузка сбрасывает кэш и расчётные выплаты после очистки.
       window.location.reload();
     } catch {
       setClearing(false);
@@ -74,8 +66,7 @@ export function ImportExportPanel() {
     if (!file) return;
 
     try {
-      await importFromFile(file, repos);
-      await queryClient.invalidateQueries();
+      await importData(file);
       toast({
         variant: "success",
         description: "Данные загружены",
@@ -84,9 +75,7 @@ export function ImportExportPanel() {
       toast({
         variant: "destructive",
         description:
-          e instanceof Error
-            ? e.message
-            : "Ошибка при импорте данных",
+          e instanceof Error ? e.message : "Ошибка при импорте данных",
       });
     } finally {
       e.target.value = "";
