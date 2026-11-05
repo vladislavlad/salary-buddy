@@ -24,6 +24,7 @@ import type {
   SickLeavePhaseParams,
   NdflPhaseParams,
 } from "./types";
+import { buildOvertimeEvents } from "./overtime";
 import { sortSalaryChanges, getSalaryForDate } from "./salary";
 import { sortSurchargeChanges, calculatePeriodSurcharge } from "./surcharge";
 import {
@@ -611,6 +612,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
   const {
     settings,
     bonuses,
+    overtime = [],
     surcharges,
     regionalCoefficients,
     vacations,
@@ -632,7 +634,7 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
   const minYear = Math.min(firstChangeYear, MIN_DISPLAY_YEAR);
   const maxYear = Math.max(lastChangeYear, MAX_DISPLAY_YEAR);
 
-  // Phase 1: Build salary/advance/surcharge events + bonus events
+  // Формируем авансы, зарплаты, доплаты, премии и переработки.
   const { events, paymentDatesByMonth } = buildSalaryEvents({
     settings,
     sortedChanges,
@@ -652,6 +654,13 @@ export function calculateAll(input: CalculateAllInput): Payment[] {
       sortedRegionalCoefficientChanges,
       minYear,
       maxYear,
+    ),
+    ...buildOvertimeEvents(
+      overtime,
+      events,
+      calendarsByYear,
+      sortedChanges,
+      sortedRegionalCoefficientChanges,
     ),
   );
 

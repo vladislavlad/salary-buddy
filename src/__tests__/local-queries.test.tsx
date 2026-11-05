@@ -12,6 +12,7 @@ import { useCalendarSettings } from "@/features/calendar/hooks/useCalendarSettin
 import { CalendarProvider } from "@/features/calendar/model/CalendarProvider";
 import { CalendarSettingsProvider } from "@/features/calendar/model/CalendarSettingsProvider";
 import { useCalendar } from "@/features/calendar/hooks/useCalendar";
+import { useOvertimeService } from "@/features/overtime/hooks/useOvertime";
 import { useBonusesService } from "@/features/bonus/hooks/useBonuses";
 import { useSalaryService } from "@/features/salary/hooks/useSalaryService";
 import { useSurchargeService } from "@/features/surcharge/hooks/useSurcharge";
@@ -49,6 +50,7 @@ function setup(overrides: Partial<ExportImportRepositories> = {}) {
   const repositories: ExportImportRepositories = {
     salary: new InMemoryRepository([salary]),
     bonus: new InMemoryRepository(),
+    overtime: new InMemoryRepository(),
     surcharge: new InMemoryRepository(),
     regionalCoefficient: new InMemoryRepository(),
     vacation: new InMemoryRepository(),
@@ -93,6 +95,7 @@ function setup(overrides: Partial<ExportImportRepositories> = {}) {
     () => ({
       salary: useSalaryService(repositories.salary),
       bonus: useBonusesService(repositories.bonus),
+      overtime: useOvertimeService(repositories.overtime),
       surcharge: useSurchargeService(repositories.surcharge),
       coefficient: useRegionalCoefficientService(
         repositories.regionalCoefficient,
@@ -195,7 +198,7 @@ describe("Локальные асинхронные данные", () => {
       const queries = queryClient
         .getQueryCache()
         .findAll({ queryKey: LOCAL_QUERY_KEY });
-      expect(queries).toHaveLength(9);
+      expect(queries).toHaveLength(10);
       expect(queries.every((query) => query.state.status === "success")).toBe(
         true,
       );
@@ -246,6 +249,49 @@ describe("Локальные асинхронные данные", () => {
     );
   });
 
+  it("создаёт, изменяет и удаляет переработку без сети", async () => {
+    onlineManager.setOnline(false);
+    const { result, repositories } = setup();
+    const date = localDate(2026, 4, 18);
+    await waitFor(() => expect(result.current.overtime.loading).toBe(false));
+
+    await act(async () => {
+      const invalid = await result.current.overtime.saveOvertime({
+        input: { date, hours: 25, multiplier: 2 },
+      });
+      expect(invalid.ok).toBe(false);
+      expect(await repositories.overtime.findAll()).toEqual([]);
+
+      const saved = await result.current.overtime.saveOvertime({
+        input: { date, hours: 8, multiplier: 2 },
+      });
+      expect(saved.ok).toBe(true);
+    });
+
+    await waitFor(() => expect(result.current.overtime.overtime).toHaveLength(1));
+    const entry = result.current.overtime.overtime[0]!;
+    await act(async () => {
+      await result.current.overtime.saveOvertime({
+        id: entry.id,
+        input: { date, hours: 2.5, multiplier: 3 },
+      });
+    });
+
+    await waitFor(() =>
+      expect(result.current.overtime.overtime).toEqual([
+        { ...entry, hours: 2.5, multiplier: 3 },
+      ]),
+    );
+    expect((await collectExportData(repositories)).overtime).toEqual(
+      result.current.overtime.overtime,
+    );
+
+    await act(async () => {
+      await result.current.overtime.removeOvertime(entry.id);
+    });
+    await waitFor(() => expect(result.current.overtime.overtime).toEqual([]));
+  });
+
   it("ошибку локального чтения возвращает без автоматических повторов", async () => {
     const repository = new InMemoryRepository<Salary>();
     const read = vi
@@ -290,6 +336,26 @@ describe("Локальные асинхронные данные", () => {
     });
   });
 
+  it("импортирует резервную копию без поля overtime и заменяет список", async () => {
+    const { result, repositories } = setup({
+      overtime: new InMemoryRepository([
+        { id: "ot:existing", date: localDate(2026, 4, 18), hours: 8, multiplier: 2 },
+      ]),
+    });
+    await waitFor(() => expect(result.current.overtime.overtime).toHaveLength(1));
+    const backup = await collectExportData(repositories);
+    const file = {
+      text: async () => JSON.stringify({ ...backup, overtime: undefined }),
+    } as File;
+
+    await act(async () => {
+      await result.current.importExport.importData(file);
+    });
+
+    await waitFor(() => expect(result.current.overtime.overtime).toEqual([]));
+    expect(await repositories.overtime.findAll()).toEqual([]);
+  });
+
   it("после импорта обновляет данные и настройки без перезагрузки календарей", async () => {
     const { result, queryClient, repositories } = setup();
     await waitFor(() => expect(result.current.sickLeave.loading).toBe(false));
@@ -299,6 +365,9 @@ describe("Локальные асинхронные данные", () => {
       queryFn: readCalendar,
     });
     const exported = await collectExportData(repositories);
+    exported.overtime = [
+      { id: "ot:imported", date: localDate(2026, 4, 18), hours: 8, multiplier: 2 },
+    ];
     exported.salaries = [{ ...salary, amount: 15_000_000 }];
     exported.sickLeaveSettings = {
       enableTopUp: false,
@@ -320,6 +389,7 @@ describe("Локальные асинхронные данные", () => {
         result.current.paymentSettings.paymentSettings.advancePaymentDay,
       ).toBe(18);
     });
+    expect(result.current.overtime.overtime).toEqual(exported.overtime);
     expect(readCalendar).toHaveBeenCalledOnce();
     expect(queryClient.getQueryState(["calendar", 2026])?.isInvalidated).toBe(
       false,

@@ -1,3 +1,4 @@
+import { LocalStorageOvertimeRepository } from "@/features/overtime/repository/LocalStorageOvertimeRepository";
 import { createListRepository } from "@/shared/repository/LocalStorageRepository";
 import { LocalStorageCalendarSettingsRepository } from "@/features/calendar/repository/LocalStorageCalendarSettingsRepository";
 import { LocalStorageSalaryPaymentSettingsRepository } from "@/features/salary-payment-settings/repository/LocalStorageSalaryPaymentSettingsRepository";
@@ -23,6 +24,7 @@ export const bonusRepository = createListRepository<Bonus>(
   "salary-buddy-bonuses",
   BonusSchema,
 );
+export const overtimeRepository = new LocalStorageOvertimeRepository();
 export const paymentsRepository = createListRepository<Payment>(
   "salary-buddy-payments",
   PaymentSchema,

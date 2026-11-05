@@ -34,7 +34,7 @@ export class LocalStorageRepository<
 > implements Repository<T, string> {
   constructor(
     private readonly storageKey: string,
-    private readonly schema: z.ZodType<T[]>,
+    private readonly schema: z.ZodType<T[], z.ZodTypeDef, unknown>,
   ) {}
 
   async findAll(): Promise<T[]> {

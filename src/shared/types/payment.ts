@@ -14,6 +14,7 @@ const PAYMENT_TYPES = [
   "salary",
   "vacation",
   "bonus",
+  "overtime",
   "surcharge",
   "sick-leave",
   "sick-leave-sfr",

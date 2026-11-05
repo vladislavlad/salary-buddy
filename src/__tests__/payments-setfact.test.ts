@@ -167,6 +167,23 @@ describe("PaymentsApplicationService.setFact", () => {
     expect(juneVacAfter.fact).toBe(FACT_GROSS);
   });
 
+  it("сохраняет оба факта при перекрывающихся записях и пересчёте", async () => {
+    const { service, repository, input } = setup();
+    const [first, second] = await service.recalculate(input);
+
+    await Promise.all([
+      service.setFact(first!.id, 2_000_000),
+      service.setFact(second!.id, 3_000_000, input),
+      service.recalculate(input),
+    ]);
+
+    const saved = await repository.findAll();
+    expect(saved.find((payment) => payment.sourceId === first!.sourceId)?.fact)
+      .toBe(2_000_000);
+    expect(saved.find((payment) => payment.sourceId === second!.sourceId)?.fact)
+      .toBe(3_000_000);
+  });
+
   it("fact сохраняется при повторном расчёте без setFact", async () => {
     const { service, input } = setup();
 

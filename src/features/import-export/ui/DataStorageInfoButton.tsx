@@ -36,7 +36,7 @@ export function DataStorageInfoButton() {
         </DialogHeader>
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>
-            Все данные – оклад, премии, отпуска, больничные и настройки –
+            Все данные – оклад, премии, переработки, отпуска, больничные и настройки –
             хранятся только локально в этом браузере (localStorage).
           </p>
           <p>

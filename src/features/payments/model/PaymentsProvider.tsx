@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSalaryProvider } from "@/features/salary/hooks/useSalaryProvider";
 import { useSalaryPaymentSettingsProvider } from "@/features/salary-payment-settings/hooks/useSalaryPaymentSettingsProvider";
+import { useOvertime } from "@/features/overtime/hooks/useOvertime";
 import { useBonusesProvider } from "@/features/bonus/hooks/useBonusesProvider";
 import { useVacationsProvider } from "@/features/vacation/hooks/useVacationsProvider";
 import { useSickLeavesProvider } from "@/features/sick-leave/hooks/useSickLeavesProvider";
@@ -26,6 +27,7 @@ export function PaymentsProvider({
   const { paymentSettings, loading: settingsLoading } =
     useSalaryPaymentSettingsProvider();
   const { bonuses, loading: bonusesLoading } = useBonusesProvider();
+  const { overtime, loading: overtimeLoading } = useOvertime();
   const { surcharges, loading: surchargesLoading } = useSurchargeProvider();
   const { coefficients, loading: coefficientsLoading } =
     useRegionalCoefficientProvider();
@@ -44,6 +46,7 @@ export function PaymentsProvider({
     !salariesLoading &&
     !settingsLoading &&
     !bonusesLoading &&
+    !overtimeLoading &&
     !surchargesLoading &&
     !coefficientsLoading &&
     !vacationsLoading &&
@@ -62,6 +65,7 @@ export function PaymentsProvider({
         salaryChanges: salaries,
       },
       bonuses,
+      overtime,
       surcharges,
       regionalCoefficients: coefficients,
       vacations,
@@ -73,6 +77,7 @@ export function PaymentsProvider({
       paymentSettings,
       salaries,
       bonuses,
+      overtime,
       surcharges,
       coefficients,
       vacations,
@@ -93,10 +98,14 @@ export function PaymentsProvider({
 
   const setFact = useCallback(
     async (paymentId: string, factGross?: number) => {
-      const result = await service.setFact(paymentId, factGross, input);
+      const result = await service.setFact(
+        paymentId,
+        factGross,
+        sourcesReady ? input : undefined,
+      );
       setPayments(result);
     },
-    [service, input],
+    [service, input, sourcesReady],
   );
 
   const value = useMemo(() => ({ payments, setFact }), [payments, setFact]);

@@ -21,6 +21,7 @@ export const PAYMENT_PRIORITY: Record<PaymentType, number> = {
   advance: 1,
   salary: 1,
   surcharge: 1,
+  overtime: 1,
   vacation: 2,
   "sick-leave": 2,
   "sick-leave-sfr": 2,
@@ -32,6 +33,7 @@ export const PAY_VAR_SUFFIX: Record<PaymentType, string> = {
   advance: "salary",
   salary: "salary",
   surcharge: "salary",
+  overtime: "salary",
   vacation: "vacation",
   bonus: "bonus",
   "sick-leave": "sickleave",
@@ -43,6 +45,7 @@ export const PAYMENT_COLOR_VAR: Record<PaymentType, string> = {
   advance: "var(--pay-salary-bg)",
   salary: "var(--pay-salary-bg)",
   surcharge: "var(--pay-salary-bg)",
+  overtime: "var(--pay-salary-bg)",
   vacation: "var(--pay-vacation-bg)",
   bonus: "var(--pay-bonus-bg)",
   "sick-leave": "var(--pay-sickleave-bg)",
@@ -69,6 +72,8 @@ export function getPaymentLabel(type: PaymentType): string {
       return "Аванс";
     case "salary":
       return "Зарплата";
+    case "overtime":
+      return "Переработка";
     case "surcharge":
       return "Доплата";
     case "vacation":

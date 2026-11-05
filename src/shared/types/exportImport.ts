@@ -1,3 +1,4 @@
+import { OvertimeSchema } from "@/features/overtime/model/overtime";
 import { z } from "zod";
 import {
   SalaryPaymentSettingsSchema,
@@ -16,6 +17,7 @@ export const ExportDataSchema = z.object({
   salaryPaymentSettings: SalaryPaymentSettingsSchema,
   salaries: SalarySchema.array(),
   bonuses: BonusSchema.array(),
+  overtime: OvertimeSchema.array().default([]),
   vacations: VacationSchema.array(),
   surcharges: SurchargeChangeSchema.array(),
   payments: PaymentSchema.array(),

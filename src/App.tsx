@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   AlertTriangle,
+  Clock,
   Plus,
   Settings2,
   Calendar as CalendarIcon,
@@ -20,6 +21,7 @@ import { SalaryManager } from "@/features/salary/ui/SalaryManager";
 import { SurchargeManager } from "@/features/surcharge/ui/SurchargeManager";
 import { YearCalendar } from "@/features/calendar/ui/YearCalendar";
 import { YearNavigator } from "@/features/calendar/ui/YearNavigator";
+import { OvertimeManager } from "@/features/overtime/ui/OvertimeManager";
 import { BonusManager } from "@/features/bonus/ui/BonusManager";
 import { SickLeaveManager } from "@/features/sick-leave/ui/SickLeaveManager";
 import { VacationManager } from "@/features/vacation/ui/VacationManager";
@@ -98,6 +100,10 @@ function AppContent() {
 
           <CollapsibleSection title="Районный коэффициент" icon={MapPin}>
             <RegionalCoefficientManager />
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Переработки" icon={Clock}>
+            <OvertimeManager />
           </CollapsibleSection>
 
           <CollapsibleSection title="Премии" icon={Plus}>

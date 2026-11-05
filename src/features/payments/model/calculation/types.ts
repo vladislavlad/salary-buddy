@@ -1,3 +1,4 @@
+import type { Overtime } from "@/features/overtime/model/overtime";
 import type {
   SalaryCalculationSettings,
   SalaryChange,
@@ -60,6 +61,7 @@ export interface NdflPhaseParams {
 export interface CalculateAllInput {
   settings: SalaryCalculationSettings;
   bonuses: Bonus[];
+  overtime?: Overtime[];
   surcharges: SurchargeChange[];
   regionalCoefficients?: RegionalCoefficientChange[];
   vacations: Vacation[];

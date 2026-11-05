@@ -1,3 +1,4 @@
+import type { Overtime } from "@/features/overtime/model/overtime";
 import { DEFAULT_SALARY_PAYMENT_SETTINGS } from "@/features/salary-payment-settings/model/defaultSalaryPaymentSettings";
 import type { SalaryPaymentSettingsRepository } from "@/features/salary-payment-settings/repository/SalaryPaymentSettingsRepository";
 import type { SickLeaveSettingsRepository } from "@/features/sick-leave/repository/SickLeaveSettingsRepository";
@@ -14,6 +15,7 @@ const DEFAULT_SICK_LEAVE_SETTINGS: SickLeaveSettings = {
 export interface ExportImportRepositories {
   salary: Repository<Salary>;
   bonus: Repository<Bonus>;
+  overtime: Repository<Overtime>;
   vacation: Repository<Vacation>;
   surcharge: Repository<SurchargeChange>;
   payment: Repository<Payment>;
@@ -30,10 +32,11 @@ export async function collectExportData(repos: ExportImportRepositories): Promis
   const today = new Date();
   const exportDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-  const [salaryPaymentSettings, salaries, bonuses, vacations, surcharges, payments, sickLeaves, sickLeaveSettings, regionalCoefficients] = await Promise.all([
+  const [salaryPaymentSettings, salaries, bonuses, overtime, vacations, surcharges, payments, sickLeaves, sickLeaveSettings, regionalCoefficients] = await Promise.all([
     repos.salaryPaymentSettings.get(),
     repos.salary.findAll(),
     repos.bonus.findAll(),
+    repos.overtime.findAll(),
     repos.vacation.findAll(),
     repos.surcharge.findAll(),
     repos.payment.findAll(),
@@ -47,6 +50,7 @@ export async function collectExportData(repos: ExportImportRepositories): Promis
     salaryPaymentSettings: salaryPaymentSettings ?? DEFAULT_SALARY_PAYMENT_SETTINGS,
     salaries,
     bonuses,
+    overtime,
     vacations,
     surcharges,
     payments,
@@ -82,6 +86,7 @@ export async function importFromFile(file: File, repos: ExportImportRepositories
     repos.salaryPaymentSettings.save(validated.salaryPaymentSettings),
     repos.salary.saveAll(validated.salaries),
     repos.bonus.saveAll(validated.bonuses),
+    repos.overtime.saveAll(validated.overtime),
     repos.vacation.saveAll(validated.vacations),
     repos.surcharge.saveAll(validated.surcharges),
     repos.payment.saveAll(validated.payments),
@@ -98,6 +103,7 @@ export async function clearAll(repos: ExportImportRepositories): Promise<void> {
   await Promise.all([
     repos.salary.clear(),
     repos.bonus.clear(),
+    repos.overtime.clear(),
     repos.vacation.clear(),
     repos.surcharge.clear(),
     repos.payment.clear(),

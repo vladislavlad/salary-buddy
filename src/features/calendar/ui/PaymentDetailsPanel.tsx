@@ -224,7 +224,7 @@ export function PaymentDetailsPanel({
     <>
       <div
         ref={popoverRef}
-        className="fixed z-50 w-[280px] rounded-lg border bg-card-secondary popover-shadow p-3 space-y-2 text-sm"
+        className="fixed z-50 w-[280px] max-h-[calc(100dvh-16px)] overflow-y-auto rounded-lg border bg-card-secondary popover-shadow p-3 space-y-2 text-sm"
         style={{ top: position.top, left: position.left }}
       >
         <p className="font-semibold">
